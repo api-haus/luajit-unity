@@ -1,5 +1,6 @@
-namespace LuaCharacters.ThirdPerson
+namespace LuaCharacters.ThirdPerson.Authoring
 {
+	using Components;
 	using Unity.Entities;
 	using UnityEngine;
 	using UnityEngine.InputSystem;
@@ -13,7 +14,7 @@ namespace LuaCharacters.ThirdPerson
 		[Tooltip("Input actions asset passed to Lua player bootstrap.")]
 		public InputActionAsset playerInputActions;
 
-		class Baker : Unity.Entities.Baker<LuaPlayerBootstrapAuthoring>
+		class Baker : Baker<LuaPlayerBootstrapAuthoring>
 		{
 			public override void Bake(LuaPlayerBootstrapAuthoring authoring)
 			{
@@ -25,7 +26,7 @@ namespace LuaCharacters.ThirdPerson
 					DependsOn(authoring.playerInputActions);
 					AddComponentObject(
 						entity,
-						new ThirdPersonPlayerInputActions { InputActionAsset = authoring.playerInputActions }
+						new ThirdPersonPlayerInputActions { inputActionAsset = authoring.playerInputActions }
 					);
 				}
 				else

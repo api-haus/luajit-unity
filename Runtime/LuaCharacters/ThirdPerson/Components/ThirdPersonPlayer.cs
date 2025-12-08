@@ -1,6 +1,7 @@
-namespace LuaCharacters.ThirdPerson
+namespace LuaCharacters.ThirdPerson.Components
 {
 	using System;
+	using Input;
 	using Unity.Entities;
 	using Unity.Mathematics;
 	using UnityEngine.InputSystem;
@@ -12,7 +13,7 @@ namespace LuaCharacters.ThirdPerson
 	[Serializable]
 	public class ThirdPersonPlayerInputActions : IComponentData
 	{
-		public InputActionAsset InputActionAsset;
+		public InputActionAsset inputActionAsset;
 	}
 
 	/// <summary>

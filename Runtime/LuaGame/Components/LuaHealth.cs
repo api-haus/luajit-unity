@@ -8,43 +8,43 @@ namespace LuaGame.Components
 	/// </summary>
 	public struct LuaHealth : IComponentData
 	{
-		public float Current;
-		public float Max;
-		public bool IsDead;
+		public float current;
+		public float max;
+		public bool isDead;
 
 		public static LuaHealth Create(float max)
 		{
 			return new LuaHealth
 			{
-				Current = max,
-				Max = max,
-				IsDead = false,
+				current = max,
+				max = max,
+				isDead = false,
 			};
 		}
 
 		public void TakeDamage(float amount)
 		{
-			if (IsDead)
+			if (isDead)
 				return;
 
-			Current -= amount;
-			if (Current <= 0)
+			current -= amount;
+			if (current <= 0)
 			{
-				Current = 0;
-				IsDead = true;
+				current = 0;
+				isDead = true;
 			}
 		}
 
 		public void Heal(float amount)
 		{
-			if (IsDead)
+			if (isDead)
 				return;
 
-			Current += amount;
-			if (Current > Max)
-				Current = Max;
+			current += amount;
+			if (current > max)
+				current = max;
 		}
 
-		public float HealthPercent => Max > 0 ? Current / Max : 0;
+		public float HealthPercent => max > 0 ? current / max : 0;
 	}
 }

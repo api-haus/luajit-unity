@@ -1,4 +1,4 @@
-namespace LuaCharacters
+namespace LuaCharacters.Core
 {
 	using System;
 	using Unity.Entities;

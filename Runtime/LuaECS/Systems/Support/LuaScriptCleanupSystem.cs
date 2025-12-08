@@ -1,6 +1,6 @@
 namespace LuaECS.Systems.Support
 {
-	using LuaECS.Components;
+	using Components;
 	using LuaVM.Core;
 	using Unity.Collections;
 	using Unity.Entities;
@@ -15,24 +15,24 @@ namespace LuaECS.Systems.Support
 	[UpdateAfter(typeof(LuaScriptFulfillmentSystem))]
 	public partial class LuaScriptCleanupSystem : SystemBase
 	{
-		LuaVMManager m_VM;
+		LuaVMManager m_Vm;
 
 		protected override void OnStartRunning()
 		{
-			m_VM = LuaVMManager.Instance ?? LuaVMManager.GetOrCreate();
+			m_Vm = LuaVMManager.Instance ?? LuaVMManager.GetOrCreate();
 		}
 
 		protected override void OnUpdate()
 		{
-			if (m_VM == null || !m_VM.IsValid)
+			if (m_Vm == null || !m_Vm.IsValid)
 			{
 				if (LuaVMManager.Instance != null && LuaVMManager.Instance.IsValid)
-					m_VM = LuaVMManager.Instance;
+					m_Vm = LuaVMManager.Instance;
 				else
 					return;
 			}
 
-			var vm = m_VM;
+			var vm = m_Vm;
 			var entityManager = EntityManager;
 
 			// Query entities with LuaScript buffer but no LuaEntityId (orphaned)
@@ -60,20 +60,20 @@ namespace LuaECS.Systems.Support
 					var script = scripts[j];
 
 					// Skip already disabled/cleaned scripts
-					if (script.StateRef < 0 || script.Disabled)
+					if (script.stateRef < 0 || script.disabled)
 						continue;
 
-					var scriptName = script.ScriptName.ToString();
+					var scriptName = script.scriptName.ToString();
 
-					vm.CallFunction(scriptName, "OnDestroy", script.EntityIndex, script.StateRef);
+					vm.CallFunction(scriptName, "OnDestroy", script.entityIndex, script.stateRef);
 
 					Log.Verbose(
 						"[LuaCleanup] Releasing state for {0}:{1} ref={2}",
 						scriptName,
-						script.EntityIndex,
-						script.StateRef
+						script.entityIndex,
+						script.stateRef
 					);
-					vm.ReleaseEntityState(scriptName, script.EntityIndex, script.StateRef);
+					vm.ReleaseEntityState(scriptName, script.entityIndex, script.stateRef);
 				}
 
 				// DestroyEntity strips non-cleanup components but keeps cleanup components alive

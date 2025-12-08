@@ -6,13 +6,13 @@ namespace LuaECS.Core
 
 	public static partial class LuaECSBridge
 	{
-		internal static void RegisterLogFunctions(lua_State L)
+		internal static void RegisterLogFunctions(lua_State l)
 		{
-			RegisterFunction(L, "log_dispatch", ECS_LogDispatch);
-			RegisterFunction(L, "traceback", ECS_Traceback);
+			RegisterFunction(l, "log_dispatch", ECS_LogDispatch);
+			RegisterFunction(l, "traceback", ECS_Traceback);
 		}
 
-		internal static void InitializeGlobalLog(lua_State L)
+		internal static void InitializeGlobalLog(lua_State l)
 		{
 			const string logSetup =
 				/**lua*/@"
@@ -53,21 +53,21 @@ log = {
 }
 ";
 
-			var result = Lua.luaL_dostring(L, logSetup);
+			var result = Lua.luaL_dostring(l, logSetup);
 			if (result != Lua.LUA_OK)
 			{
-				var error = Lua.lua_tostring(L, -1) ?? "unknown error";
+				var error = Lua.lua_tostring(l, -1) ?? "unknown error";
 				Log.Error("[LuaECS] Failed to initialize Lua log helpers: {0}", error);
-				Lua.lua_pop(L, 1);
+				Lua.lua_pop(l, 1);
 			}
 		}
 
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
-		static int ECS_LogDispatch(lua_State L)
+		static int ECS_LogDispatch(lua_State l)
 		{
-			var level = Lua.lua_tostring(L, 1) ?? "info";
-			var message = Lua.lua_tostring(L, 2) ?? "";
-			var stackTrace = Lua.lua_tostring(L, 3) ?? "";
+			var level = Lua.lua_tostring(l, 1) ?? "info";
+			var message = Lua.lua_tostring(l, 2) ?? "";
+			var stackTrace = Lua.lua_tostring(l, 3) ?? "";
 
 			switch (level)
 			{
@@ -97,16 +97,16 @@ log = {
 		}
 
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
-		static int ECS_Traceback(lua_State L)
+		static int ECS_Traceback(lua_State l)
 		{
-			Lua.lua_getglobal(L, "debug");
-			Lua.lua_getfield(L, -1, "traceback");
-			Lua.lua_pushstring(L, "");
-			Lua.lua_pushinteger(L, 2);
-			Lua.lua_call(L, 2, 1);
+			Lua.lua_getglobal(l, "debug");
+			Lua.lua_getfield(l, -1, "traceback");
+			Lua.lua_pushstring(l, "");
+			Lua.lua_pushinteger(l, 2);
+			Lua.lua_call(l, 2, 1);
 
-			Lua.lua_insert(L, -2);
-			Lua.lua_pop(L, 1);
+			Lua.lua_insert(l, -2);
+			Lua.lua_pop(l, 1);
 
 			return 1;
 		}

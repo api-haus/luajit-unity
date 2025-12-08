@@ -1,10 +1,9 @@
 namespace LuaECS.Core
 {
 	using System.Threading;
-	using LuaECS.Components;
-	using LuaECS.Systems;
+	using Components;
 	using LuaNET.LuaJIT;
-	using LuaVM.Burst;
+	using Systems;
 	using Unity.Burst;
 	using Unity.Collections;
 	using Unity.Collections.LowLevel.Unsafe;
@@ -14,14 +13,14 @@ namespace LuaECS.Core
 
 	public struct PendingEntityCreation
 	{
-		public int EntityId;
-		public float3 Position;
+		public int entityId;
+		public float3 position;
 	}
 
 	public struct PendingScriptAddition
 	{
-		public int EntityId;
-		public FixedString64Bytes ScriptName;
+		public int entityId;
+		public FixedString64Bytes scriptName;
 	}
 
 	/// <summary>
@@ -29,13 +28,13 @@ namespace LuaECS.Core
 	/// </summary>
 	public struct PendingEventDispatch
 	{
-		public Entity Entity;
-		public int ScriptIndex;
-		public FixedString64Bytes ScriptName;
-		public int EntityIndex;
-		public int StateRef;
-		public int EventStartIndex;
-		public int EventCount;
+		public Entity entity;
+		public int scriptIndex;
+		public FixedString64Bytes scriptName;
+		public int entityIndex;
+		public int stateRef;
+		public int eventStartIndex;
+		public int eventCount;
 	}
 
 	/// <summary>
@@ -43,10 +42,10 @@ namespace LuaECS.Core
 	/// </summary>
 	public struct LuaEventContextData
 	{
-		public UnsafeList<PendingEventDispatch> PendingEvents;
-		public UnsafeList<LuaEvent> EventBuffer;
-		public UnsafeList<Entity> EntitiesToClear;
-		public bool IsValid;
+		public UnsafeList<PendingEventDispatch> pendingEvents;
+		public UnsafeList<LuaEvent> eventBuffer;
+		public UnsafeList<Entity> entitiesToClear;
+		public bool isValid;
 	}
 
 	/// <summary>
@@ -56,27 +55,27 @@ namespace LuaECS.Core
 	public unsafe struct BurstBridgeContext
 	{
 		[NativeDisableUnsafePtrRestriction]
-		public UnsafeHashMap<int, Entity> EntityIdMap;
+		public UnsafeHashMap<int, Entity> entityIdMap;
 
 		[NativeDisableUnsafePtrRestriction]
-		public ComponentLookup<LocalTransform> TransformLookup;
+		public ComponentLookup<LocalTransform> transformLookup;
 
 		[NativeDisableUnsafePtrRestriction]
-		public BufferLookup<LuaScript> ScriptBufferLookup;
+		public BufferLookup<LuaScript> scriptBufferLookup;
 
 		[NativeDisableUnsafePtrRestriction]
-		public UnsafeList<LuaCommand>* PendingCommands;
+		public UnsafeList<LuaCommand>* pendingCommands;
 
 		[NativeDisableUnsafePtrRestriction]
-		public UnsafeList<int>* PendingDestructions;
+		public UnsafeList<int>* pendingDestructions;
 
 		[NativeDisableUnsafePtrRestriction]
-		public UnsafeList<PendingEntityCreation>* PendingCreations;
+		public UnsafeList<PendingEntityCreation>* pendingCreations;
 
 		[NativeDisableUnsafePtrRestriction]
-		public UnsafeList<PendingScriptAddition>* PendingScripts;
+		public UnsafeList<PendingScriptAddition>* pendingScripts;
 
-		public bool IsValid;
+		public bool isValid;
 	}
 
 	/// <summary>
@@ -92,106 +91,104 @@ namespace LuaECS.Core
 
 		struct EventContextMarker { }
 
-		static World s_World;
-		static EntityManager s_EntityManager;
-		static LuaScriptingSystem s_ScriptingSystem;
-		static EntityQuery s_PlayerQuery;
-		static bool s_PlayerQueryInitialized;
+		static World s_world;
+		static EntityManager s_entityManager;
+		static LuaScriptingSystem s_scriptingSystem;
+		static EntityQuery s_playerQuery;
+		static bool s_playerQueryInitialized;
 
-		static NativeList<LuaCommand> s_PendingCommands;
-		static NativeList<int> s_PendingDestructions;
-		static NativeList<PendingEntityCreation> s_PendingCreations;
-		static NativeList<PendingScriptAddition> s_PendingScripts;
-		static bool s_Initialized;
+		static NativeList<LuaCommand> s_pendingCommands;
+		static NativeList<int> s_pendingDestructions;
+		static NativeList<PendingEntityCreation> s_pendingCreations;
+		static NativeList<PendingScriptAddition> s_pendingScripts;
+		static bool s_initialized;
 
-		static readonly SharedStatic<BurstBridgeContext> s_BurstContext =
+		static readonly SharedStatic<BurstBridgeContext> s_burstContext =
 			SharedStatic<BurstBridgeContext>.GetOrCreate<BurstContextMarker, BurstBridgeContext>();
 
-		static readonly SharedStatic<int> s_NextEntityId =
+		static readonly SharedStatic<int> s_nextEntityId =
 			SharedStatic<int>.GetOrCreate<NextEntityIdMarker>();
 
-		static readonly SharedStatic<LuaEventContextData> s_EventContext =
+		static readonly SharedStatic<LuaEventContextData> s_eventContext =
 			SharedStatic<LuaEventContextData>.GetOrCreate<EventContextMarker, LuaEventContextData>();
 
-		public static ref LuaEventContextData EventContext => ref s_EventContext.Data;
+		public static ref LuaEventContextData EventContext => ref s_eventContext.Data;
 
 		public static void Initialize(World world, LuaScriptingSystem scriptingSystem)
 		{
-			if (s_Initialized)
+			if (s_initialized)
 			{
-				s_World = world;
-				s_EntityManager = world.EntityManager;
-				s_ScriptingSystem = scriptingSystem;
+				s_world = world;
+				s_entityManager = world.EntityManager;
+				s_scriptingSystem = scriptingSystem;
 				return;
 			}
 
-			s_World = world;
-			s_EntityManager = world.EntityManager;
-			s_ScriptingSystem = scriptingSystem;
-			s_PendingCommands = new NativeList<LuaCommand>(64, Allocator.Persistent);
-			s_PendingDestructions = new NativeList<int>(32, Allocator.Persistent);
-			s_PendingCreations = new NativeList<PendingEntityCreation>(32, Allocator.Persistent);
-			s_PendingScripts = new NativeList<PendingScriptAddition>(32, Allocator.Persistent);
-			s_NextEntityId.Data = 1;
+			s_world = world;
+			s_entityManager = world.EntityManager;
+			s_scriptingSystem = scriptingSystem;
+			s_pendingCommands = new NativeList<LuaCommand>(64, Allocator.Persistent);
+			s_pendingDestructions = new NativeList<int>(32, Allocator.Persistent);
+			s_pendingCreations = new NativeList<PendingEntityCreation>(32, Allocator.Persistent);
+			s_pendingScripts = new NativeList<PendingScriptAddition>(32, Allocator.Persistent);
+			s_nextEntityId.Data = 1;
 
-			unsafe
+			s_eventContext.Data = new LuaEventContextData
 			{
-				s_EventContext.Data = new LuaEventContextData
-				{
-					PendingEvents = new UnsafeList<PendingEventDispatch>(64, Allocator.Persistent),
-					EventBuffer = new UnsafeList<LuaEvent>(128, Allocator.Persistent),
-					EntitiesToClear = new UnsafeList<Entity>(64, Allocator.Persistent),
-					IsValid = true,
-				};
-			}
+				pendingEvents = new UnsafeList<PendingEventDispatch>(64, Allocator.Persistent),
+				eventBuffer = new UnsafeList<LuaEvent>(128, Allocator.Persistent),
+				entitiesToClear = new UnsafeList<Entity>(64, Allocator.Persistent),
+				isValid = true,
+			};
 
-			if (s_PlayerQueryInitialized)
-				s_PlayerQuery.Dispose();
+			if (s_playerQueryInitialized)
+				s_playerQuery.Dispose();
 
-			s_PlayerQuery = s_EntityManager.CreateEntityQuery(ComponentType.ReadOnly<LuaPlayerTag>());
-			s_PlayerQueryInitialized = true;
-			s_Initialized = true;
+			s_playerQuery = s_entityManager.CreateEntityQuery(ComponentType.ReadOnly<LuaPlayerTag>());
+			s_playerQueryInitialized = true;
+			s_initialized = true;
 		}
 
 		public static void Shutdown()
 		{
-			s_BurstContext.Data = default;
+			s_burstContext.Data = default;
 
-			if (s_PendingCommands.IsCreated)
-				s_PendingCommands.Dispose();
+			if (s_pendingCommands.IsCreated)
+				s_pendingCommands.Dispose();
 
-			if (s_PendingDestructions.IsCreated)
-				s_PendingDestructions.Dispose();
+			if (s_pendingDestructions.IsCreated)
+				s_pendingDestructions.Dispose();
 
-			if (s_PendingCreations.IsCreated)
-				s_PendingCreations.Dispose();
+			if (s_pendingCreations.IsCreated)
+				s_pendingCreations.Dispose();
 
-			if (s_PendingScripts.IsCreated)
-				s_PendingScripts.Dispose();
+			if (s_pendingScripts.IsCreated)
+				s_pendingScripts.Dispose();
 
-			ref var eventCtx = ref s_EventContext.Data;
-			if (eventCtx.IsValid)
+			ref var eventCtx = ref s_eventContext.Data;
+			if (eventCtx.isValid)
 			{
-				if (eventCtx.PendingEvents.IsCreated)
-					eventCtx.PendingEvents.Dispose();
-				if (eventCtx.EventBuffer.IsCreated)
-					eventCtx.EventBuffer.Dispose();
-				if (eventCtx.EntitiesToClear.IsCreated)
-					eventCtx.EntitiesToClear.Dispose();
+				if (eventCtx.pendingEvents.IsCreated)
+					eventCtx.pendingEvents.Dispose();
+				if (eventCtx.eventBuffer.IsCreated)
+					eventCtx.eventBuffer.Dispose();
+				if (eventCtx.entitiesToClear.IsCreated)
+					eventCtx.entitiesToClear.Dispose();
 				eventCtx = default;
 			}
 
-			if (s_PlayerQueryInitialized)
+			if (s_playerQueryInitialized)
 			{
-				s_PlayerQuery.Dispose();
-				s_PlayerQueryInitialized = false;
+				s_playerQuery.Dispose();
+				s_playerQueryInitialized = false;
 			}
-			s_PlayerQuery = default;
 
-			s_World = null;
-			s_EntityManager = default;
-			s_ScriptingSystem = null;
-			s_Initialized = false;
+			s_playerQuery = default;
+
+			s_world = null;
+			s_entityManager = default;
+			s_scriptingSystem = null;
+			s_initialized = false;
 		}
 
 		/// <summary>
@@ -203,70 +200,70 @@ namespace LuaECS.Core
 			BufferLookup<LuaScript> scriptBufferLookup
 		)
 		{
-			if (!s_Initialized)
+			if (!s_initialized)
 			{
-				s_BurstContext.Data = default;
+				s_burstContext.Data = default;
 				return;
 			}
 
 			if (!LuaEntityRegistry.IsCreated)
 			{
-				s_BurstContext.Data = default;
+				s_burstContext.Data = default;
 				return;
 			}
 
 			unsafe
 			{
-				s_BurstContext.Data = new BurstBridgeContext
+				s_burstContext.Data = new BurstBridgeContext
 				{
-					EntityIdMap = LuaEntityRegistry.EntityIdMap,
-					TransformLookup = transformLookup,
-					ScriptBufferLookup = scriptBufferLookup,
-					PendingCommands = s_PendingCommands.GetUnsafeList(),
-					PendingDestructions = s_PendingDestructions.GetUnsafeList(),
-					PendingCreations = s_PendingCreations.GetUnsafeList(),
-					PendingScripts = s_PendingScripts.GetUnsafeList(),
-					IsValid = true,
+					entityIdMap = LuaEntityRegistry.EntityIdMap,
+					transformLookup = transformLookup,
+					scriptBufferLookup = scriptBufferLookup,
+					pendingCommands = s_pendingCommands.GetUnsafeList(),
+					pendingDestructions = s_pendingDestructions.GetUnsafeList(),
+					pendingCreations = s_pendingCreations.GetUnsafeList(),
+					pendingScripts = s_pendingScripts.GetUnsafeList(),
+					isValid = true,
 				};
 			}
 		}
 
-		public static void RegisterFunctions(lua_State L)
+		public static void RegisterFunctions(lua_State l)
 		{
-			Lua.lua_newtable(L);
+			Lua.lua_newtable(l);
 
-			RegisterTransformFunctions(L);
-			RegisterSpatialFunctions(L);
-			RegisterEntityFunctions(L);
-			RegisterCommandFunctions(L);
-			RegisterLogFunctions(L);
+			RegisterTransformFunctions(l);
+			RegisterSpatialFunctions(l);
+			RegisterEntityFunctions(l);
+			RegisterCommandFunctions(l);
+			RegisterLogFunctions(l);
 
-			Lua.lua_setglobal(L, "ecs");
+			Lua.lua_setglobal(l, "ecs");
 
-			InitializeGlobalLog(L);
+			InitializeGlobalLog(l);
 
-			RegisterInputFunctions(L);
-			RegisterCharacterFunctions(L);
-			RegisterDrawFunctions(L);
-			RegisterPlayerFunctions(L);
+			RegisterInputFunctions(l);
+			RegisterCharacterFunctions(l);
+			RegisterDrawFunctions(l);
+			RegisterPlayerFunctions(l);
 		}
 
-		static void RegisterFunction(lua_State L, string name, Lua.lua_CFunction func)
+		static void RegisterFunction(lua_State l, string name, Lua.lua_CFunction func)
 		{
-			Lua.lua_pushcfunction(L, func);
-			Lua.lua_setfield(L, -2, name);
+			Lua.lua_pushcfunction(l, func);
+			Lua.lua_setfield(l, -2, name);
 		}
 
 		public static NativeList<LuaCommand> FlushCommands()
 		{
-			if (!s_Initialized || !s_PendingCommands.IsCreated)
+			if (!s_initialized || !s_pendingCommands.IsCreated)
 			{
 				return new NativeList<LuaCommand>(0, Allocator.Temp);
 			}
 
-			var commands = new NativeList<LuaCommand>(s_PendingCommands.Length, Allocator.Temp);
-			commands.CopyFrom(s_PendingCommands);
-			s_PendingCommands.Clear();
+			var commands = new NativeList<LuaCommand>(s_pendingCommands.Length, Allocator.Temp);
+			commands.CopyFrom(s_pendingCommands);
+			s_pendingCommands.Clear();
 			return commands;
 		}
 
@@ -275,27 +272,27 @@ namespace LuaECS.Core
 			return LuaEntityRegistry.GetEntityFromId(entityId);
 		}
 
-		static float3 TableToFloat3(lua_State L, int index)
+		static float3 TableToFloat3(lua_State l, int index)
 		{
 			var result = float3.zero;
 
 			if (index < 0)
-				index = Lua.lua_gettop(L) + index + 1;
+				index = Lua.lua_gettop(l) + index + 1;
 
-			Lua.lua_getfield(L, index, "x");
-			if (Lua.lua_isnumber(L, -1) != 0)
-				result.x = (float)Lua.lua_tonumber(L, -1);
-			Lua.lua_pop(L, 1);
+			Lua.lua_getfield(l, index, "x");
+			if (Lua.lua_isnumber(l, -1) != 0)
+				result.x = (float)Lua.lua_tonumber(l, -1);
+			Lua.lua_pop(l, 1);
 
-			Lua.lua_getfield(L, index, "y");
-			if (Lua.lua_isnumber(L, -1) != 0)
-				result.y = (float)Lua.lua_tonumber(L, -1);
-			Lua.lua_pop(L, 1);
+			Lua.lua_getfield(l, index, "y");
+			if (Lua.lua_isnumber(l, -1) != 0)
+				result.y = (float)Lua.lua_tonumber(l, -1);
+			Lua.lua_pop(l, 1);
 
-			Lua.lua_getfield(L, index, "z");
-			if (Lua.lua_isnumber(L, -1) != 0)
-				result.z = (float)Lua.lua_tonumber(L, -1);
-			Lua.lua_pop(L, 1);
+			Lua.lua_getfield(l, index, "z");
+			if (Lua.lua_isnumber(l, -1) != 0)
+				result.z = (float)Lua.lua_tonumber(l, -1);
+			Lua.lua_pop(l, 1);
 
 			return result;
 		}
@@ -304,19 +301,19 @@ namespace LuaECS.Core
 		{
 			float3 euler;
 
-			var sinr_cosp = 2 * (q.value.w * q.value.x + q.value.y * q.value.z);
-			var cosr_cosp = 1 - 2 * (q.value.x * q.value.x + q.value.y * q.value.y);
-			euler.x = math.atan2(sinr_cosp, cosr_cosp);
+			var sinrCosp = 2 * ((q.value.w * q.value.x) + (q.value.y * q.value.z));
+			var cosrCosp = 1 - (2 * ((q.value.x * q.value.x) + (q.value.y * q.value.y)));
+			euler.x = math.atan2(sinrCosp, cosrCosp);
 
-			var sinp = 2 * (q.value.w * q.value.y - q.value.z * q.value.x);
+			var sinp = 2 * ((q.value.w * q.value.y) - (q.value.z * q.value.x));
 			if (math.abs(sinp) >= 1)
 				euler.y = math.sign(sinp) * math.PI / 2;
 			else
 				euler.y = math.asin(sinp);
 
-			var siny_cosp = 2 * (q.value.w * q.value.z + q.value.x * q.value.y);
-			var cosy_cosp = 1 - 2 * (q.value.y * q.value.y + q.value.z * q.value.z);
-			euler.z = math.atan2(siny_cosp, cosy_cosp);
+			var sinyCosp = 2 * ((q.value.w * q.value.z) + (q.value.x * q.value.y));
+			var cosyCosp = 1 - (2 * ((q.value.y * q.value.y) + (q.value.z * q.value.z)));
+			euler.z = math.atan2(sinyCosp, cosyCosp);
 
 			return math.degrees(euler);
 		}
@@ -327,11 +324,11 @@ namespace LuaECS.Core
 		/// </summary>
 		public static Entity GetEntityFromIdBurst(int entityId)
 		{
-			ref var ctx = ref s_BurstContext.Data;
-			if (!ctx.IsValid || entityId <= 0)
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid || entityId <= 0)
 				return Entity.Null;
 
-			return ctx.EntityIdMap.TryGetValue(entityId, out var entity) ? entity : Entity.Null;
+			return ctx.entityIdMap.TryGetValue(entityId, out var entity) ? entity : Entity.Null;
 		}
 
 		/// <summary>
@@ -339,16 +336,16 @@ namespace LuaECS.Core
 		/// </summary>
 		internal static bool TryGetTransformBurst(Entity entity, out LocalTransform transform)
 		{
-			ref var ctx = ref s_BurstContext.Data;
+			ref var ctx = ref s_burstContext.Data;
 			transform = default;
 
-			if (!ctx.IsValid || entity == Entity.Null)
+			if (!ctx.isValid || entity == Entity.Null)
 				return false;
 
-			if (!ctx.TransformLookup.HasComponent(entity))
+			if (!ctx.transformLookup.HasComponent(entity))
 				return false;
 
-			transform = ctx.TransformLookup[entity];
+			transform = ctx.transformLookup[entity];
 			return true;
 		}
 
@@ -357,15 +354,15 @@ namespace LuaECS.Core
 		/// </summary>
 		internal static bool TrySetTransformBurst(Entity entity, LocalTransform transform)
 		{
-			ref var ctx = ref s_BurstContext.Data;
+			ref var ctx = ref s_burstContext.Data;
 
-			if (!ctx.IsValid || entity == Entity.Null)
+			if (!ctx.isValid || entity == Entity.Null)
 				return false;
 
-			if (!ctx.TransformLookup.HasComponent(entity))
+			if (!ctx.transformLookup.HasComponent(entity))
 				return false;
 
-			ctx.TransformLookup[entity] = transform;
+			ctx.transformLookup[entity] = transform;
 			return true;
 		}
 
@@ -374,11 +371,11 @@ namespace LuaECS.Core
 		/// </summary>
 		internal static unsafe void AddCommandBurst(LuaCommand command)
 		{
-			ref var ctx = ref s_BurstContext.Data;
-			if (!ctx.IsValid || ctx.PendingCommands == null)
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid || ctx.pendingCommands == null)
 				return;
 
-			ctx.PendingCommands->Add(command);
+			ctx.pendingCommands->Add(command);
 		}
 
 		/// <summary>
@@ -386,11 +383,11 @@ namespace LuaECS.Core
 		/// </summary>
 		internal static unsafe void QueueDestructionBurst(int entityId)
 		{
-			ref var ctx = ref s_BurstContext.Data;
-			if (!ctx.IsValid || ctx.PendingDestructions == null || entityId <= 0)
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid || ctx.pendingDestructions == null || entityId <= 0)
 				return;
 
-			ctx.PendingDestructions->Add(entityId);
+			ctx.pendingDestructions->Add(entityId);
 		}
 
 		/// <summary>
@@ -399,12 +396,12 @@ namespace LuaECS.Core
 		/// </summary>
 		public static NativeList<int> FlushDestructions()
 		{
-			if (!s_Initialized || !s_PendingDestructions.IsCreated)
+			if (!s_initialized || !s_pendingDestructions.IsCreated)
 				return new NativeList<int>(0, Allocator.Temp);
 
-			var destructions = new NativeList<int>(s_PendingDestructions.Length, Allocator.Temp);
-			destructions.CopyFrom(s_PendingDestructions);
-			s_PendingDestructions.Clear();
+			var destructions = new NativeList<int>(s_pendingDestructions.Length, Allocator.Temp);
+			destructions.CopyFrom(s_pendingDestructions);
+			s_pendingDestructions.Clear();
 			return destructions;
 		}
 
@@ -413,13 +410,13 @@ namespace LuaECS.Core
 		/// </summary>
 		internal static unsafe int CreateEntityBurst(float3 position)
 		{
-			ref var ctx = ref s_BurstContext.Data;
-			if (!ctx.IsValid || ctx.PendingCreations == null)
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid || ctx.pendingCreations == null)
 				return -1;
 
-			var entityId = Interlocked.Increment(ref s_NextEntityId.Data);
-			ctx.PendingCreations->Add(
-				new PendingEntityCreation { EntityId = entityId, Position = position }
+			var entityId = Interlocked.Increment(ref s_nextEntityId.Data);
+			ctx.pendingCreations->Add(
+				new PendingEntityCreation { entityId = entityId, position = position }
 			);
 			return entityId;
 		}
@@ -429,7 +426,7 @@ namespace LuaECS.Core
 		/// </summary>
 		internal static int AllocateEntityId()
 		{
-			return Interlocked.Increment(ref s_NextEntityId.Data);
+			return Interlocked.Increment(ref s_nextEntityId.Data);
 		}
 
 		/// <summary>
@@ -437,12 +434,12 @@ namespace LuaECS.Core
 		/// </summary>
 		internal static unsafe bool AddScriptBurst(int entityId, FixedString64Bytes scriptName)
 		{
-			ref var ctx = ref s_BurstContext.Data;
-			if (!ctx.IsValid || ctx.PendingScripts == null || entityId <= 0)
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid || ctx.pendingScripts == null || entityId <= 0)
 				return false;
 
-			ctx.PendingScripts->Add(
-				new PendingScriptAddition { EntityId = entityId, ScriptName = scriptName }
+			ctx.pendingScripts->Add(
+				new PendingScriptAddition { entityId = entityId, scriptName = scriptName }
 			);
 			return true;
 		}
@@ -452,19 +449,20 @@ namespace LuaECS.Core
 		/// </summary>
 		internal static bool HasScriptBurst(Entity entity, FixedString64Bytes scriptName)
 		{
-			ref var ctx = ref s_BurstContext.Data;
-			if (!ctx.IsValid || entity == Entity.Null)
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid || entity == Entity.Null)
 				return false;
 
-			if (!ctx.ScriptBufferLookup.HasBuffer(entity))
+			if (!ctx.scriptBufferLookup.HasBuffer(entity))
 				return false;
 
-			var scripts = ctx.ScriptBufferLookup[entity];
+			var scripts = ctx.scriptBufferLookup[entity];
 			for (var i = 0; i < scripts.Length; i++)
 			{
-				if (scripts[i].ScriptName == scriptName)
+				if (scripts[i].scriptName == scriptName)
 					return true;
 			}
+
 			return false;
 		}
 
@@ -473,15 +471,15 @@ namespace LuaECS.Core
 		/// </summary>
 		public static NativeList<PendingEntityCreation> FlushCreations()
 		{
-			if (!s_Initialized || !s_PendingCreations.IsCreated)
+			if (!s_initialized || !s_pendingCreations.IsCreated)
 				return new NativeList<PendingEntityCreation>(0, Allocator.Temp);
 
 			var creations = new NativeList<PendingEntityCreation>(
-				s_PendingCreations.Length,
+				s_pendingCreations.Length,
 				Allocator.Temp
 			);
-			creations.CopyFrom(s_PendingCreations);
-			s_PendingCreations.Clear();
+			creations.CopyFrom(s_pendingCreations);
+			s_pendingCreations.Clear();
 			return creations;
 		}
 
@@ -490,12 +488,12 @@ namespace LuaECS.Core
 		/// </summary>
 		public static NativeList<PendingScriptAddition> FlushScriptAdditions()
 		{
-			if (!s_Initialized || !s_PendingScripts.IsCreated)
+			if (!s_initialized || !s_pendingScripts.IsCreated)
 				return new NativeList<PendingScriptAddition>(0, Allocator.Temp);
 
-			var scripts = new NativeList<PendingScriptAddition>(s_PendingScripts.Length, Allocator.Temp);
-			scripts.CopyFrom(s_PendingScripts);
-			s_PendingScripts.Clear();
+			var scripts = new NativeList<PendingScriptAddition>(s_pendingScripts.Length, Allocator.Temp);
+			scripts.CopyFrom(s_pendingScripts);
+			s_pendingScripts.Clear();
 			return scripts;
 		}
 
@@ -505,10 +503,10 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void SyncNextEntityId(int nextId)
 		{
-			var current = s_NextEntityId.Data;
+			var current = s_nextEntityId.Data;
 			while (current < nextId)
 			{
-				var prev = Interlocked.CompareExchange(ref s_NextEntityId.Data, nextId, current);
+				var prev = Interlocked.CompareExchange(ref s_nextEntityId.Data, nextId, current);
 				if (prev == current)
 					break;
 				current = prev;
@@ -520,13 +518,13 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void ClearEventContext()
 		{
-			ref var ctx = ref s_EventContext.Data;
-			if (!ctx.IsValid)
+			ref var ctx = ref s_eventContext.Data;
+			if (!ctx.isValid)
 				return;
 
-			ctx.PendingEvents.Clear();
-			ctx.EventBuffer.Clear();
-			ctx.EntitiesToClear.Clear();
+			ctx.pendingEvents.Clear();
+			ctx.eventBuffer.Clear();
+			ctx.entitiesToClear.Clear();
 		}
 
 		/// <summary>
@@ -542,20 +540,20 @@ namespace LuaECS.Core
 			int eventCount
 		)
 		{
-			ref var ctx = ref s_EventContext.Data;
-			if (!ctx.IsValid)
+			ref var ctx = ref s_eventContext.Data;
+			if (!ctx.isValid)
 				return;
 
-			ctx.PendingEvents.Add(
+			ctx.pendingEvents.Add(
 				new PendingEventDispatch
 				{
-					Entity = entity,
-					ScriptIndex = scriptIndex,
-					ScriptName = scriptName,
-					EntityIndex = entityIndex,
-					StateRef = stateRef,
-					EventStartIndex = eventStartIndex,
-					EventCount = eventCount,
+					entity = entity,
+					scriptIndex = scriptIndex,
+					scriptName = scriptName,
+					entityIndex = entityIndex,
+					stateRef = stateRef,
+					eventStartIndex = eventStartIndex,
+					eventCount = eventCount,
 				}
 			);
 		}
@@ -565,12 +563,12 @@ namespace LuaECS.Core
 		/// </summary>
 		public static int AddEvent(LuaEvent evt)
 		{
-			ref var ctx = ref s_EventContext.Data;
-			if (!ctx.IsValid)
+			ref var ctx = ref s_eventContext.Data;
+			if (!ctx.isValid)
 				return -1;
 
-			var index = ctx.EventBuffer.Length;
-			ctx.EventBuffer.Add(evt);
+			var index = ctx.eventBuffer.Length;
+			ctx.eventBuffer.Add(evt);
 			return index;
 		}
 
@@ -579,11 +577,11 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void AddEntityToClear(Entity entity)
 		{
-			ref var ctx = ref s_EventContext.Data;
-			if (!ctx.IsValid)
+			ref var ctx = ref s_eventContext.Data;
+			if (!ctx.isValid)
 				return;
 
-			ctx.EntitiesToClear.Add(entity);
+			ctx.entitiesToClear.Add(entity);
 		}
 
 		/// <summary>
@@ -591,11 +589,11 @@ namespace LuaECS.Core
 		/// </summary>
 		public static LuaEvent GetEvent(int index)
 		{
-			ref var ctx = ref s_EventContext.Data;
-			if (!ctx.IsValid || index < 0 || index >= ctx.EventBuffer.Length)
+			ref var ctx = ref s_eventContext.Data;
+			if (!ctx.isValid || index < 0 || index >= ctx.eventBuffer.Length)
 				return default;
 
-			return ctx.EventBuffer[index];
+			return ctx.eventBuffer[index];
 		}
 	}
 }

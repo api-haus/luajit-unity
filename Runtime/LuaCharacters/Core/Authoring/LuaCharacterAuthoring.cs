@@ -1,4 +1,4 @@
-namespace LuaCharacters
+namespace LuaCharacters.Core.Authoring
 {
 	using Unity.CharacterController;
 	using Unity.Entities;
@@ -8,42 +8,42 @@ namespace LuaCharacters
 	[DisallowMultipleComponent]
 	public class LuaCharacterAuthoring : MonoBehaviour
 	{
-		public AuthoringKinematicCharacterProperties CharacterProperties =
+		public AuthoringKinematicCharacterProperties characterProperties =
 			AuthoringKinematicCharacterProperties.GetDefault();
-		public float RotationSharpness = 25f;
-		public float GroundMaxSpeed = 10f;
-		public float GroundedMovementSharpness = 15f;
-		public float AirAcceleration = 50f;
-		public float AirMaxSpeed = 10f;
-		public float AirDrag = 0f;
-		public float JumpSpeed = 10f;
-		public float3 Gravity = math.up() * -30f;
-		public bool PreventAirAccelerationAgainstUngroundedHits = true;
+		public float rotationSharpness = 25f;
+		public float groundMaxSpeed = 10f;
+		public float groundedMovementSharpness = 15f;
+		public float airAcceleration = 50f;
+		public float airMaxSpeed = 10f;
+		public float airDrag = 0f;
+		public float jumpSpeed = 10f;
+		public float3 gravity = math.up() * -30f;
+		public bool preventAirAccelerationAgainstUngroundedHits = true;
 
-		public class Baker : Unity.Entities.Baker<LuaCharacterAuthoring>
+		public class Baker : Baker<LuaCharacterAuthoring>
 		{
 			public override void Bake(LuaCharacterAuthoring authoring)
 			{
 				var entity = GetEntity(TransformUsageFlags.Dynamic);
 
 				// Add kinematic character components
-				KinematicCharacterUtilities.BakeCharacter(this, authoring, authoring.CharacterProperties);
+				KinematicCharacterUtilities.BakeCharacter(this, authoring, authoring.characterProperties);
 
 				// Add Lua character components
 				AddComponent(
 					entity,
 					new LuaCharacterComponent
 					{
-						rotationSharpness = authoring.RotationSharpness,
-						groundMaxSpeed = authoring.GroundMaxSpeed,
-						groundedMovementSharpness = authoring.GroundedMovementSharpness,
-						airAcceleration = authoring.AirAcceleration,
-						airMaxSpeed = authoring.AirMaxSpeed,
-						airDrag = authoring.AirDrag,
-						jumpSpeed = authoring.JumpSpeed,
-						gravity = authoring.Gravity,
+						rotationSharpness = authoring.rotationSharpness,
+						groundMaxSpeed = authoring.groundMaxSpeed,
+						groundedMovementSharpness = authoring.groundedMovementSharpness,
+						airAcceleration = authoring.airAcceleration,
+						airMaxSpeed = authoring.airMaxSpeed,
+						airDrag = authoring.airDrag,
+						jumpSpeed = authoring.jumpSpeed,
+						gravity = authoring.gravity,
 						preventAirAccelerationAgainstUngroundedHits =
-							authoring.PreventAirAccelerationAgainstUngroundedHits,
+							authoring.preventAirAccelerationAgainstUngroundedHits,
 					}
 				);
 

@@ -1,12 +1,10 @@
 namespace LuaECS.Tests
 {
 	using System.Collections;
-	using System.Collections.Generic;
-	using LuaECS.Components;
-	using LuaECS.Core;
+	using Components;
+	using Core;
 	using LuaVM.Core;
 	using NUnit.Framework;
-	using Unity.Collections;
 	using Unity.Entities;
 	using Unity.Transforms;
 	using UnityEngine;
@@ -116,8 +114,8 @@ namespace LuaECS.Tests
 		{
 			for (var i = 0; i < AGENT_COUNT; i++)
 			{
-				var x = UnityEngine.Random.Range(-GRID_SIZE / 2f, GRID_SIZE / 2f);
-				var z = UnityEngine.Random.Range(-GRID_SIZE / 2f, GRID_SIZE / 2f);
+				var x = Random.Range(-GRID_SIZE / 2f, GRID_SIZE / 2f);
+				var z = Random.Range(-GRID_SIZE / 2f, GRID_SIZE / 2f);
 
 				var entity = m_EntityManager.CreateEntity(typeof(LocalTransform), typeof(AgentTag));
 
@@ -125,15 +123,15 @@ namespace LuaECS.Tests
 				requests.Add(
 					new LuaScriptRequest
 					{
-						ScriptName = "fruit_eater",
-						RequestHash = LuaScriptPathUtility.HashScriptName("fruit_eater"),
-						Fulfilled = false,
+						scriptName = "fruit_eater",
+						requestHash = LuaScriptPathUtility.HashScriptName("fruit_eater"),
+						fulfilled = false,
 					}
 				);
 
 				m_EntityManager.AddBuffer<LuaCommand>(entity);
 				m_EntityManager.AddBuffer<LuaEvent>(entity);
-				m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+				m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 				m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(x, 0, z));
 			}
 
@@ -144,8 +142,8 @@ namespace LuaECS.Tests
 		{
 			for (var i = 0; i < count; i++)
 			{
-				var x = UnityEngine.Random.Range(-GRID_SIZE / 2f, GRID_SIZE / 2f);
-				var z = UnityEngine.Random.Range(-GRID_SIZE / 2f, GRID_SIZE / 2f);
+				var x = Random.Range(-GRID_SIZE / 2f, GRID_SIZE / 2f);
+				var z = Random.Range(-GRID_SIZE / 2f, GRID_SIZE / 2f);
 
 				var entity = m_EntityManager.CreateEntity(typeof(LocalTransform), typeof(FruitTag));
 
@@ -153,15 +151,15 @@ namespace LuaECS.Tests
 				requests.Add(
 					new LuaScriptRequest
 					{
-						ScriptName = "fruit",
-						RequestHash = LuaScriptPathUtility.HashScriptName("fruit"),
-						Fulfilled = false,
+						scriptName = "fruit",
+						requestHash = LuaScriptPathUtility.HashScriptName("fruit"),
+						fulfilled = false,
 					}
 				);
 
 				m_EntityManager.AddBuffer<LuaCommand>(entity);
 				m_EntityManager.AddBuffer<LuaEvent>(entity);
-				m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+				m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 				m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(x, 0, z));
 			}
 

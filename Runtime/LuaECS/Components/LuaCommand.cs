@@ -5,30 +5,30 @@ namespace LuaECS.Components
 
 	public enum LuaCommandType : byte
 	{
-		None = 0,
-		Move,
-		MoveToward,
-		Attack,
-		Deposit,
-		DepositAll,
-		Pickup,
-		SetState,
-		SpawnEntity,
-		DestroyEntity,
+		NONE = 0,
+		MOVE,
+		MOVE_TOWARD,
+		ATTACK,
+		DEPOSIT,
+		DEPOSIT_ALL,
+		PICKUP,
+		SET_STATE,
+		SPAWN_ENTITY,
+		DESTROY_ENTITY,
 	}
 
 	public struct LuaCommand : IBufferElementData
 	{
-		public Entity Target;
-		public LuaCommandType Type;
-		public float3 Position;
-		public float FloatParam;
-		public int IntParam;
-		public Entity SecondaryTarget;
+		public Entity target;
+		public LuaCommandType type;
+		public float3 position;
+		public float floatParam;
+		public int intParam;
+		public Entity secondaryTarget;
 	}
 
 	public struct LuaCommandBuffer : IComponentData
 	{
-		public int CommandCount;
+		public int commandCount;
 	}
 }

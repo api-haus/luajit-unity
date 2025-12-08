@@ -5,10 +5,10 @@ namespace LuaECS.Components
 
 	public struct LuaEvent : IBufferElementData
 	{
-		public FixedString32Bytes EventName;
-		public Entity Source;
-		public Entity Target;
-		public int IntParam;
-		public float FloatParam;
+		public FixedString32Bytes eventName;
+		public Entity source;
+		public Entity target;
+		public int intParam;
+		public float floatParam;
 	}
 }

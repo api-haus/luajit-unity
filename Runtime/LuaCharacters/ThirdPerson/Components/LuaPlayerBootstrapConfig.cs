@@ -1,4 +1,4 @@
-namespace LuaCharacters.ThirdPerson
+namespace LuaCharacters.ThirdPerson.Components
 {
 	using Unity.Entities;
 

@@ -43,17 +43,17 @@ namespace LuaGame.Tests
 			yield return null;
 
 			var health = m_EntityManager.GetComponentData<LuaHealth>(entity);
-			health.Current = 0;
+			health.current = 0;
 			m_EntityManager.SetComponentData(entity, health);
 
 			yield return null;
 
 			health = m_EntityManager.GetComponentData<LuaHealth>(entity);
-			Assert.IsTrue(health.IsDead, "Entity should be marked as dead");
+			Assert.IsTrue(health.isDead, "Entity should be marked as dead");
 
 			var events = m_EntityManager.GetBuffer<LuaEvent>(entity);
 			Assert.AreEqual(1, events.Length, "Should have one OnDeath event");
-			Assert.AreEqual("OnDeath", events[0].EventName.ToString());
+			Assert.AreEqual("OnDeath", events[0].eventName.ToString());
 		}
 
 		[UnityTest]
@@ -64,7 +64,7 @@ namespace LuaGame.Tests
 			yield return null;
 
 			var health = m_EntityManager.GetComponentData<LuaHealth>(entity);
-			health.Current = 0;
+			health.current = 0;
 			m_EntityManager.SetComponentData(entity, health);
 
 			yield return null;
@@ -84,7 +84,7 @@ namespace LuaGame.Tests
 			yield return null;
 
 			var health = m_EntityManager.GetComponentData<LuaHealth>(entity);
-			Assert.IsFalse(health.IsDead, "Entity should not be dead");
+			Assert.IsFalse(health.isDead, "Entity should not be dead");
 
 			var events = m_EntityManager.GetBuffer<LuaEvent>(entity);
 			Assert.AreEqual(0, events.Length, "No death events for healthy entity");
@@ -98,13 +98,13 @@ namespace LuaGame.Tests
 			yield return null;
 
 			var health = m_EntityManager.GetComponentData<LuaHealth>(entity);
-			health.Current = 1f;
+			health.current = 1f;
 			m_EntityManager.SetComponentData(entity, health);
 
 			yield return null;
 
 			health = m_EntityManager.GetComponentData<LuaHealth>(entity);
-			Assert.IsFalse(health.IsDead, "Entity should not be dead with 1 HP");
+			Assert.IsFalse(health.isDead, "Entity should not be dead with 1 HP");
 
 			var events = m_EntityManager.GetBuffer<LuaEvent>(entity);
 			Assert.AreEqual(0, events.Length, "No death events for alive entity");

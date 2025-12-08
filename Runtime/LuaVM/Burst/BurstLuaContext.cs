@@ -14,30 +14,30 @@ namespace LuaVM.Burst
 	{
 		struct IdMarker { }
 
-		static readonly SharedStatic<int> s_NextId = SharedStatic<int>.GetOrCreate<IdMarker>();
+		static readonly SharedStatic<int> s_nextId = SharedStatic<int>.GetOrCreate<IdMarker>();
 
 		/// <summary>
 		/// Atomically allocate a new unique ID.
 		/// </summary>
 		public static int Allocate()
 		{
-			return Interlocked.Increment(ref s_NextId.Data);
+			return Interlocked.Increment(ref s_nextId.Data);
 		}
 
 		/// <summary>
 		/// Get the current next ID value without allocating.
 		/// </summary>
-		public static int Current => s_NextId.Data;
+		public static int Current => s_nextId.Data;
 
 		/// <summary>
 		/// Sync the allocator to ensure IDs start from at least the given value.
 		/// </summary>
 		public static void SyncMinimum(int minId)
 		{
-			var current = s_NextId.Data;
+			var current = s_nextId.Data;
 			while (current < minId)
 			{
-				var prev = Interlocked.CompareExchange(ref s_NextId.Data, minId, current);
+				var prev = Interlocked.CompareExchange(ref s_nextId.Data, minId, current);
 				if (prev == current)
 					break;
 				current = prev;
@@ -49,7 +49,7 @@ namespace LuaVM.Burst
 		/// </summary>
 		public static void Reset()
 		{
-			s_NextId.Data = 0;
+			s_nextId.Data = 0;
 		}
 	}
 

@@ -1,15 +1,14 @@
 namespace LuaECS.Tests
 {
 	using System.Collections;
-	using LuaECS.Components;
-	using LuaECS.Core;
-	using LuaECS.Systems;
+	using Components;
+	using Core;
+	using Systems;
 	using LuaVM.Core;
 	using NUnit.Framework;
 	using Unity.Entities;
 	using Unity.Mathematics;
 	using Unity.Transforms;
-	using UnityEngine;
 	using UnityEngine.TestTools;
 
 	/// <summary>
@@ -148,14 +147,14 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = scriptName,
-					RequestHash = LuaScriptPathUtility.HashScriptName(scriptName),
-					Fulfilled = false,
+					scriptName = scriptName,
+					requestHash = LuaScriptPathUtility.HashScriptName(scriptName),
+					fulfilled = false,
 				}
 			);
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(position));
 			return entity;
 		}

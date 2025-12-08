@@ -1,7 +1,7 @@
 namespace LuaECS.Systems
 {
-	using LuaECS.Components;
-	using LuaECS.Core;
+	using Components;
+	using Core;
 	using Unity.Burst;
 	using Unity.Collections;
 	using Unity.Entities;
@@ -37,36 +37,36 @@ namespace LuaECS.Systems
 			// Sort commands: movement goes to parallel job, others processed immediately
 			foreach (var cmd in commands)
 			{
-				switch (cmd.Type)
+				switch (cmd.type)
 				{
-					case LuaCommandType.Move:
-					case LuaCommandType.MoveToward:
+					case LuaCommandType.MOVE:
+					case LuaCommandType.MOVE_TOWARD:
 						if (
-							state.EntityManager.Exists(cmd.Target)
-							&& state.EntityManager.HasComponent<LocalTransform>(cmd.Target)
+							state.EntityManager.Exists(cmd.target)
+							&& state.EntityManager.HasComponent<LocalTransform>(cmd.target)
 						)
 						{
 							// Only add if not already in map (last command wins)
-							if (!entityToCommandIndex.ContainsKey(cmd.Target))
+							if (!entityToCommandIndex.ContainsKey(cmd.target))
 							{
-								entityToCommandIndex.Add(cmd.Target, moveCommands.Length);
+								entityToCommandIndex.Add(cmd.target, moveCommands.Length);
 								moveCommands.Add(cmd);
 							}
 							else
 							{
 								// Update existing command
-								var idx = entityToCommandIndex[cmd.Target];
+								var idx = entityToCommandIndex[cmd.target];
 								moveCommands[idx] = cmd;
 							}
 						}
 						break;
 
-					case LuaCommandType.Attack:
+					case LuaCommandType.ATTACK:
 						ProcessAttackCommand(ref state, cmd);
 						break;
 
-					case LuaCommandType.DestroyEntity:
-						var toDestroy = cmd.SecondaryTarget != Entity.Null ? cmd.SecondaryTarget : cmd.Target;
+					case LuaCommandType.DESTROY_ENTITY:
+						var toDestroy = cmd.secondaryTarget != Entity.Null ? cmd.secondaryTarget : cmd.target;
 						if (state.EntityManager.Exists(toDestroy))
 						{
 							Log.Debug(
@@ -89,8 +89,8 @@ namespace LuaECS.Systems
 						{
 							Log.Warning(
 								"[LuaCmd] DestroyEntity: entity doesn't exist, SecondaryTarget={0}, Target={1}",
-								cmd.SecondaryTarget.Index,
-								cmd.Target.Index
+								cmd.secondaryTarget.Index,
+								cmd.target.Index
 							);
 						}
 						break;
@@ -102,9 +102,9 @@ namespace LuaECS.Systems
 			{
 				var moveJob = new ProcessMoveCommandsJob
 				{
-					DeltaTime = deltaTime,
-					Commands = moveCommands.AsArray(),
-					EntityToCommandIndex = entityToCommandIndex,
+					deltaTime = deltaTime,
+					commands = moveCommands.AsArray(),
+					entityToCommandIndex = entityToCommandIndex,
 				};
 
 				// Schedule parallel across all entities with LocalTransform
@@ -124,20 +124,20 @@ namespace LuaECS.Systems
 
 		void ProcessAttackCommand(ref SystemState state, LuaCommand cmd)
 		{
-			if (!state.EntityManager.Exists(cmd.SecondaryTarget))
+			if (!state.EntityManager.Exists(cmd.secondaryTarget))
 				return;
 
-			if (!state.EntityManager.HasBuffer<LuaEvent>(cmd.SecondaryTarget))
+			if (!state.EntityManager.HasBuffer<LuaEvent>(cmd.secondaryTarget))
 				return;
 
-			var eventBuffer = state.EntityManager.GetBuffer<LuaEvent>(cmd.SecondaryTarget);
+			var eventBuffer = state.EntityManager.GetBuffer<LuaEvent>(cmd.secondaryTarget);
 			eventBuffer.Add(
 				new LuaEvent
 				{
-					EventName = "on_attacked",
-					Source = cmd.Target,
-					Target = cmd.SecondaryTarget,
-					IntParam = cmd.IntParam,
+					eventName = "on_attacked",
+					source = cmd.target,
+					target = cmd.secondaryTarget,
+					intParam = cmd.intParam,
 				}
 			);
 		}
@@ -150,39 +150,39 @@ namespace LuaECS.Systems
 	[BurstCompile]
 	public partial struct ProcessMoveCommandsJob : IJobEntity
 	{
-		public float DeltaTime;
+		public float deltaTime;
 
 		[ReadOnly]
-		public NativeArray<LuaCommand> Commands;
+		public NativeArray<LuaCommand> commands;
 
 		[ReadOnly]
-		public NativeHashMap<Entity, int> EntityToCommandIndex;
+		public NativeHashMap<Entity, int> entityToCommandIndex;
 
 		void Execute(Entity entity, ref LocalTransform transform)
 		{
-			if (!EntityToCommandIndex.TryGetValue(entity, out var cmdIndex))
+			if (!entityToCommandIndex.TryGetValue(entity, out var cmdIndex))
 				return;
 
-			var cmd = Commands[cmdIndex];
+			var cmd = commands[cmdIndex];
 
-			if (cmd.Type == LuaCommandType.MoveToward)
+			if (cmd.type == LuaCommandType.MOVE_TOWARD)
 			{
-				var direction = cmd.Position - transform.Position;
+				var direction = cmd.position - transform.Position;
 				var distance = math.length(direction);
 
 				if (distance > 0.01f)
 				{
 					var normalizedDir = direction / distance;
-					var moveDistance = math.min(cmd.FloatParam * DeltaTime, distance);
+					var moveDistance = math.min(cmd.floatParam * deltaTime, distance);
 					transform.Position += normalizedDir * moveDistance;
 
 					var targetRot = quaternion.LookRotationSafe(normalizedDir, math.up());
-					transform.Rotation = math.slerp(transform.Rotation, targetRot, DeltaTime * 10f);
+					transform.Rotation = math.slerp(transform.Rotation, targetRot, deltaTime * 10f);
 				}
 			}
-			else if (cmd.Type == LuaCommandType.Move)
+			else if (cmd.type == LuaCommandType.MOVE)
 			{
-				transform.Position = cmd.Position;
+				transform.Position = cmd.position;
 			}
 		}
 	}

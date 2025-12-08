@@ -1,15 +1,14 @@
 namespace LuaECS.Tests
 {
 	using System.Collections;
-	using LuaECS.Components;
-	using LuaECS.Core;
-	using LuaECS.Systems;
+	using Components;
+	using Core;
+	using Systems;
 	using LuaVM.Core;
 	using NUnit.Framework;
 	using Unity.Entities;
 	using Unity.Mathematics;
 	using Unity.Transforms;
-	using UnityEngine;
 	using UnityEngine.TestTools;
 
 	/// <summary>
@@ -58,19 +57,19 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = "fruit",
-					RequestHash = LuaScriptPathUtility.HashScriptName("fruit"),
-					Fulfilled = false,
+					scriptName = "fruit",
+					requestHash = LuaScriptPathUtility.HashScriptName("fruit"),
+					fulfilled = false,
 				}
 			);
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(0, 0, 0));
 
 			Assert.AreEqual(
 				0,
-				m_EntityManager.GetComponentData<LuaEntityId>(entity).Value,
+				m_EntityManager.GetComponentData<LuaEntityId>(entity).value,
 				"Should have sentinel LuaEntityId (0) before init"
 			);
 
@@ -82,7 +81,7 @@ namespace LuaECS.Tests
 				"Should have LuaEntityId after init"
 			);
 
-			var entityId = m_EntityManager.GetComponentData<LuaEntityId>(entity).Value;
+			var entityId = m_EntityManager.GetComponentData<LuaEntityId>(entity).value;
 			Assert.Greater(entityId, 0, "Entity ID should be positive (not sentinel)");
 
 			var resolvedEntity = m_ScriptingSystem.GetEntityFromId(entityId);
@@ -99,9 +98,9 @@ namespace LuaECS.Tests
 			yield return null;
 			yield return null;
 
-			var id1 = m_EntityManager.GetComponentData<LuaEntityId>(entity1).Value;
-			var id2 = m_EntityManager.GetComponentData<LuaEntityId>(entity2).Value;
-			var id3 = m_EntityManager.GetComponentData<LuaEntityId>(entity3).Value;
+			var id1 = m_EntityManager.GetComponentData<LuaEntityId>(entity1).value;
+			var id2 = m_EntityManager.GetComponentData<LuaEntityId>(entity2).value;
+			var id3 = m_EntityManager.GetComponentData<LuaEntityId>(entity3).value;
 
 			Assert.AreNotEqual(id1, id2, "IDs should be unique");
 			Assert.AreNotEqual(id2, id3, "IDs should be unique");
@@ -149,14 +148,14 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = scriptName,
-					RequestHash = LuaScriptPathUtility.HashScriptName(scriptName),
-					Fulfilled = false,
+					scriptName = scriptName,
+					requestHash = LuaScriptPathUtility.HashScriptName(scriptName),
+					fulfilled = false,
 				}
 			);
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(position));
 			return entity;
 		}

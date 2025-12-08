@@ -57,7 +57,7 @@ namespace LuaGame.Tests
 		public IEnumerator DestroyRemovesLuaEntityIdFirst()
 		{
 			var entity = CreateScriptedEntityWithId("fruit");
-			var entityId = m_EntityManager.GetComponentData<LuaEntityId>(entity).Value;
+			var entityId = m_EntityManager.GetComponentData<LuaEntityId>(entity).value;
 
 			yield return null;
 			yield return null;
@@ -85,7 +85,7 @@ namespace LuaGame.Tests
 		public IEnumerator CleanupSystemDestroysEntityAfterCallbacks()
 		{
 			var entity = CreateScriptedEntityWithId("fruit");
-			var entityId = m_EntityManager.GetComponentData<LuaEntityId>(entity).Value;
+			var entityId = m_EntityManager.GetComponentData<LuaEntityId>(entity).value;
 
 			yield return null;
 			yield return null;
@@ -159,14 +159,14 @@ namespace LuaGame.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = scriptName,
-					RequestHash = LuaScriptPathUtility.HashScriptName(scriptName),
-					Fulfilled = false,
+					scriptName = scriptName,
+					requestHash = LuaScriptPathUtility.HashScriptName(scriptName),
+					fulfilled = false,
 				}
 			);
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(0, 0, 0));
 
 			var id = LuaEntityRegistry.Count + 1;

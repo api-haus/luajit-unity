@@ -1,8 +1,8 @@
 namespace LuaECS.Systems.Support
 {
 	using System.Collections.Generic;
-	using LuaECS.Components;
-	using LuaECS.Core;
+	using Components;
+	using Core;
 	using LuaVM.Core;
 	using Unity.Collections;
 	using Unity.Entities;
@@ -24,22 +24,22 @@ namespace LuaECS.Systems.Support
 
 		readonly List<Entity> m_EntitiesToClear;
 
-		LuaVMManager m_VM;
+		LuaVMManager m_Vm;
 		EntityManager m_EntityManager;
 		EntityQuery m_EventQuery;
 
 		public LuaEventDispatcher(LuaVMManager vm, EntityManager entityManager, EntityQuery eventQuery)
 		{
-			m_VM = vm;
+			m_Vm = vm;
 			m_EntityManager = entityManager;
 			m_EventQuery = eventQuery;
 			m_PendingEvents = new List<(Entity, int, string, int, int, List<LuaEvent>)>(64);
 			m_EntitiesToClear = new List<Entity>(64);
 		}
 
-		public void SetVM(LuaVMManager vm)
+		public void SetVm(LuaVMManager vm)
 		{
-			m_VM = vm;
+			m_Vm = vm;
 		}
 
 		/// <summary>
@@ -72,15 +72,15 @@ namespace LuaECS.Systems.Support
 				for (var i = 0; i < scripts.Length; i++)
 				{
 					var script = scripts[i];
-					if (script.StateRef >= 0 && !script.Disabled)
+					if (script.stateRef >= 0 && !script.disabled)
 					{
 						m_PendingEvents.Add(
 							(
 								entity,
 								i,
-								script.ScriptName.ToString(),
-								script.EntityIndex,
-								script.StateRef,
+								script.scriptName.ToString(),
+								script.entityIndex,
+								script.stateRef,
 								eventsCopy
 							)
 						);
@@ -120,18 +120,18 @@ namespace LuaECS.Systems.Support
 
 				foreach (var evt in events)
 				{
-					var eventName = evt.EventName.ToString();
-					var sourceId = LuaEntityRegistry.GetEntityIdFromEntity(evt.Source, m_EntityManager);
-					var targetId = LuaEntityRegistry.GetEntityIdFromEntity(evt.Target, m_EntityManager);
+					var eventName = evt.eventName.ToString();
+					var sourceId = LuaEntityRegistry.GetEntityIdFromEntity(evt.source, m_EntityManager);
+					var targetId = LuaEntityRegistry.GetEntityIdFromEntity(evt.target, m_EntityManager);
 
-					m_VM.CallEvent(
+					m_Vm.CallEvent(
 						scriptName,
 						entityIndex,
 						stateRef,
 						eventName,
 						sourceId,
 						targetId,
-						evt.IntParam
+						evt.intParam
 					);
 				}
 			}

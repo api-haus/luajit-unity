@@ -1,7 +1,7 @@
 namespace LuaECS.Components
 {
 	using System;
-	using LuaECS.Core;
+	using Core;
 	using Unity.Collections;
 	using Unity.Entities;
 
@@ -11,17 +11,17 @@ namespace LuaECS.Components
 	/// </summary>
 	public struct LuaEntityId : IComponentData
 	{
-		public int Value;
+		public int value;
 	}
 
 	[Serializable]
 	public struct LuaScriptAssetReference : IEquatable<LuaScriptAssetReference>
 	{
-		public FixedString64Bytes ScriptId;
+		public FixedString64Bytes scriptId;
 
-		public bool IsValid => !ScriptId.IsEmpty;
+		public bool IsValid => !scriptId.IsEmpty;
 
-		public string Path => ScriptId.ToString();
+		public string Path => scriptId.ToString();
 
 		public void SetPath(string path)
 		{
@@ -40,30 +40,30 @@ namespace LuaECS.Components
 				return;
 			}
 
-			ScriptId = new FixedString64Bytes(normalized);
+			scriptId = new FixedString64Bytes(normalized);
 		}
 
 		public void Clear()
 		{
-			ScriptId.Clear();
+			scriptId.Clear();
 		}
 
-		public FixedString64Bytes AsFixedString() => ScriptId;
+		public FixedString64Bytes AsFixedString() => scriptId;
 
-		public override string ToString() => ScriptId.ToString();
+		public override string ToString() => scriptId.ToString();
 
-		public bool Equals(LuaScriptAssetReference other) => ScriptId.Equals(other.ScriptId);
+		public bool Equals(LuaScriptAssetReference other) => scriptId.Equals(other.scriptId);
 
 		public override bool Equals(object obj) =>
 			obj is LuaScriptAssetReference other && Equals(other);
 
-		public override int GetHashCode() => ScriptId.GetHashCode();
+		public override int GetHashCode() => scriptId.GetHashCode();
 
 		public static implicit operator FixedString64Bytes(LuaScriptAssetReference reference) =>
-			reference.ScriptId;
+			reference.scriptId;
 
 		public static implicit operator LuaScriptAssetReference(FixedString64Bytes scriptId) =>
-			new() { ScriptId = scriptId };
+			new() { scriptId = scriptId };
 	}
 
 	/// <summary>
@@ -74,9 +74,9 @@ namespace LuaECS.Components
 	/// </summary>
 	public struct LuaScriptRequest : IBufferElementData
 	{
-		public FixedString64Bytes ScriptName;
-		public Hash128 RequestHash;
-		public bool Fulfilled;
+		public FixedString64Bytes scriptName;
+		public Hash128 requestHash;
+		public bool fulfilled;
 	}
 
 	/// <summary>
@@ -85,10 +85,10 @@ namespace LuaECS.Components
 	/// </summary>
 	public struct LuaScript : ICleanupBufferElementData
 	{
-		public FixedString64Bytes ScriptName;
-		public int StateRef;
-		public int EntityIndex;
-		public Hash128 RequestHash;
-		public bool Disabled;
+		public FixedString64Bytes scriptName;
+		public int stateRef;
+		public int entityIndex;
+		public Hash128 requestHash;
+		public bool disabled;
 	}
 }

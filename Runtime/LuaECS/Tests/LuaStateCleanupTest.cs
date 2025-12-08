@@ -1,14 +1,13 @@
 namespace LuaECS.Tests
 {
 	using System.Collections;
-	using LuaECS.Components;
-	using LuaECS.Core;
+	using Components;
+	using Core;
 	using LuaNET.LuaJIT;
 	using LuaVM.Core;
 	using NUnit.Framework;
 	using Unity.Entities;
 	using Unity.Transforms;
-	using UnityEngine;
 	using UnityEngine.TestTools;
 
 	/// <summary>
@@ -51,16 +50,16 @@ namespace LuaECS.Tests
 
 			var scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
 			var script = scripts[0];
-			Assert.GreaterOrEqual(script.StateRef, 0, "Script should be initialized with valid StateRef");
+			Assert.GreaterOrEqual(script.stateRef, 0, "Script should be initialized with valid StateRef");
 
-			AssertStateIsTable(script.StateRef, "State should be table after init");
+			AssertStateIsTable(script.stateRef, "State should be table after init");
 
 			for (var i = 0; i < 4; i++)
 				yield return null;
 
 			scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
 			script = scripts[0];
-			AssertStateIsTable(script.StateRef, "State should remain a table after updates");
+			AssertStateIsTable(script.stateRef, "State should remain a table after updates");
 		}
 
 		[UnityTest]
@@ -73,9 +72,9 @@ namespace LuaECS.Tests
 
 			var scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
 			var script = scripts[0];
-			var scriptName = script.ScriptName.ToString();
-			var stateRef = script.StateRef;
-			var entityIndex = script.EntityIndex;
+			var scriptName = script.scriptName.ToString();
+			var stateRef = script.stateRef;
+			var entityIndex = script.entityIndex;
 
 			AssertStateIsTable(stateRef, "State should be table before cleanup");
 			Assert.IsTrue(
@@ -109,14 +108,14 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = scriptName,
-					RequestHash = LuaScriptPathUtility.HashScriptName(scriptName),
-					Fulfilled = false,
+					scriptName = scriptName,
+					requestHash = LuaScriptPathUtility.HashScriptName(scriptName),
+					fulfilled = false,
 				}
 			);
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(0, 0, 0));
 			return entity;
 		}

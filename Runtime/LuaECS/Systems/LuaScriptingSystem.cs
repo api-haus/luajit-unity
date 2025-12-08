@@ -1,11 +1,12 @@
 namespace LuaECS.Systems
 {
 	using System.Collections.Generic;
+	using Components;
+	using Core;
 	using LuaCharacters;
-	using LuaECS.Components;
-	using LuaECS.Core;
-	using LuaECS.Systems.Support;
+	using LuaCharacters.Core;
 	using LuaVM.Core;
+	using Support;
 	using Unity.CharacterController;
 	using Unity.Collections;
 	using Unity.Entities;
@@ -37,7 +38,7 @@ namespace LuaECS.Systems
 	[UpdateBefore(typeof(LuaEntityCommandBufferSystem))]
 	public partial class LuaScriptingSystem : SystemBase
 	{
-		LuaVMManager m_VM;
+		LuaVMManager m_Vm;
 		LuaEntityCommandBufferSystem m_ECBSystem;
 		LuaScriptFulfillmentSystem m_FulfillmentSystem;
 
@@ -61,7 +62,7 @@ namespace LuaECS.Systems
 
 		EntityQuery m_EventQuery;
 
-		static int s_FrameCount;
+		static int s_frameCount;
 
 		protected override void OnCreate()
 		{
@@ -85,11 +86,11 @@ namespace LuaECS.Systems
 
 		protected override void OnStartRunning()
 		{
-			if (m_VM == null)
+			if (m_Vm == null)
 			{
-				m_VM = LuaVMManager.GetOrCreate();
+				m_Vm = LuaVMManager.GetOrCreate();
 
-				m_VM.RegisterBridgeNow(LuaECSBridge.RegisterFunctions);
+				m_Vm.RegisterBridgeNow(LuaECSBridge.RegisterFunctions);
 				LuaECSBridge.Initialize(World, this);
 			}
 
@@ -99,16 +100,16 @@ namespace LuaECS.Systems
 		protected override void OnDestroy()
 		{
 			LuaECSBridge.Shutdown();
-			m_VM?.Dispose();
-			m_VM = null;
+			m_Vm?.Dispose();
+			m_Vm = null;
 		}
 
 		protected override void OnUpdate()
 		{
-			if (m_VM == null || !m_VM.IsValid)
+			if (m_Vm == null || !m_Vm.IsValid)
 				return;
 
-			s_FrameCount++;
+			s_frameCount++;
 
 			m_CurrentECB = m_ECBSystem.CreateCommandBuffer();
 			m_ECBValid = true;
@@ -139,7 +140,7 @@ namespace LuaECS.Systems
 			for (var i = 0; i < creations.Length; i++)
 			{
 				var creation = creations[i];
-				LuaEntityRegistry.CreateWithId(creation.EntityId, creation.Position, m_CurrentECB);
+				LuaEntityRegistry.CreateWithId(creation.entityId, creation.position, m_CurrentECB);
 			}
 			creations.Dispose();
 
@@ -148,8 +149,8 @@ namespace LuaECS.Systems
 			{
 				var script = scripts[i];
 				LuaEntityRegistry.AddScriptDeferred(
-					script.EntityId,
-					script.ScriptName.ToString(),
+					script.entityId,
+					script.scriptName.ToString(),
 					m_CurrentECB,
 					EntityManager
 				);
@@ -177,10 +178,10 @@ namespace LuaECS.Systems
 				for (var i = 0; i < scripts.Length; i++)
 				{
 					var script = scripts[i];
-					if (script.StateRef >= 0 && !script.Disabled)
+					if (script.stateRef >= 0 && !script.disabled)
 					{
 						m_PendingUpdates.Add(
-							(entity, i, script.ScriptName.ToString(), script.EntityIndex, script.StateRef)
+							(entity, i, script.scriptName.ToString(), script.entityIndex, script.stateRef)
 						);
 					}
 				}
@@ -210,7 +211,7 @@ namespace LuaECS.Systems
 					continue;
 				}
 
-				if (!m_VM.ValidateStateRef(scriptName, entityIndex, stateRef))
+				if (!m_Vm.ValidateStateRef(scriptName, entityIndex, stateRef))
 				{
 					Log.Warning(
 						"[LuaScripting] StateRef mismatch for {0} entity={1} stateRef={2} - skipping update",
@@ -221,7 +222,7 @@ namespace LuaECS.Systems
 					continue;
 				}
 
-				m_VM.CallUpdate(scriptName, entityIndex, stateRef, deltaTime);
+				m_Vm.CallUpdate(scriptName, entityIndex, stateRef, deltaTime);
 			}
 		}
 
@@ -236,7 +237,7 @@ namespace LuaECS.Systems
 		{
 			LuaECSBridge.ClearEventContext();
 			ref var ctx = ref LuaECSBridge.EventContext;
-			if (!ctx.IsValid)
+			if (!ctx.isValid)
 				return;
 
 			var entities = m_EventQuery.ToEntityArray(Allocator.Temp);
@@ -248,7 +249,7 @@ namespace LuaECS.Systems
 
 				LuaECSBridge.AddEntityToClear(entity);
 
-				var eventStartIndex = ctx.EventBuffer.Length;
+				var eventStartIndex = ctx.eventBuffer.Length;
 				for (var i = 0; i < events.Length; i++)
 				{
 					LuaECSBridge.AddEvent(events[i]);
@@ -259,14 +260,14 @@ namespace LuaECS.Systems
 				for (var i = 0; i < scripts.Length; i++)
 				{
 					var script = scripts[i];
-					if (script.StateRef >= 0 && !script.Disabled)
+					if (script.stateRef >= 0 && !script.disabled)
 					{
 						LuaECSBridge.AddEventDispatch(
 							entity,
 							i,
-							script.ScriptName,
-							script.EntityIndex,
-							script.StateRef,
+							script.scriptName,
+							script.entityIndex,
+							script.stateRef,
 							eventStartIndex,
 							eventCount
 						);
@@ -279,48 +280,48 @@ namespace LuaECS.Systems
 		void ClearEventBuffers()
 		{
 			ref var ctx = ref LuaECSBridge.EventContext;
-			if (!ctx.IsValid)
+			if (!ctx.isValid)
 				return;
 
-			for (var i = 0; i < ctx.EntitiesToClear.Length; i++)
+			for (var i = 0; i < ctx.entitiesToClear.Length; i++)
 			{
-				m_CurrentECB.SetBuffer<LuaEvent>(ctx.EntitiesToClear[i]);
+				m_CurrentECB.SetBuffer<LuaEvent>(ctx.entitiesToClear[i]);
 			}
 		}
 
 		void DispatchCollectedEvents()
 		{
 			ref var ctx = ref LuaECSBridge.EventContext;
-			if (!ctx.IsValid)
+			if (!ctx.isValid)
 				return;
 
-			for (var i = 0; i < ctx.PendingEvents.Length; i++)
+			for (var i = 0; i < ctx.pendingEvents.Length; i++)
 			{
-				var dispatch = ctx.PendingEvents[i];
+				var dispatch = ctx.pendingEvents[i];
 
-				if (!EntityManager.Exists(dispatch.Entity))
+				if (!EntityManager.Exists(dispatch.entity))
 					continue;
 
-				if (!EntityManager.HasComponent<LuaEntityId>(dispatch.Entity))
+				if (!EntityManager.HasComponent<LuaEntityId>(dispatch.entity))
 					continue;
 
-				var scriptName = dispatch.ScriptName.ToString();
+				var scriptName = dispatch.scriptName.ToString();
 
-				for (var j = 0; j < dispatch.EventCount; j++)
+				for (var j = 0; j < dispatch.eventCount; j++)
 				{
-					var evt = LuaECSBridge.GetEvent(dispatch.EventStartIndex + j);
-					var eventName = evt.EventName.ToString();
-					var sourceId = LuaEntityRegistry.GetEntityIdFromEntity(evt.Source, EntityManager);
-					var targetId = LuaEntityRegistry.GetEntityIdFromEntity(evt.Target, EntityManager);
+					var evt = LuaECSBridge.GetEvent(dispatch.eventStartIndex + j);
+					var eventName = evt.eventName.ToString();
+					var sourceId = LuaEntityRegistry.GetEntityIdFromEntity(evt.source, EntityManager);
+					var targetId = LuaEntityRegistry.GetEntityIdFromEntity(evt.target, EntityManager);
 
-					m_VM.CallEvent(
+					m_Vm.CallEvent(
 						scriptName,
-						dispatch.EntityIndex,
-						dispatch.StateRef,
+						dispatch.entityIndex,
+						dispatch.stateRef,
 						eventName,
 						sourceId,
 						targetId,
-						evt.IntParam
+						evt.intParam
 					);
 				}
 			}
@@ -392,11 +393,11 @@ namespace LuaECS.Systems
 			for (var i = 0; i < scripts.Length; i++)
 			{
 				var script = scripts[i];
-				if (script.StateRef < 0 || script.Disabled)
+				if (script.stateRef < 0 || script.disabled)
 					continue;
 
-				var scriptName = script.ScriptName.ToString();
-				m_VM.CallCommand(scriptName, script.EntityIndex, script.StateRef, command);
+				var scriptName = script.scriptName.ToString();
+				m_Vm.CallCommand(scriptName, script.entityIndex, script.stateRef, command);
 			}
 		}
 

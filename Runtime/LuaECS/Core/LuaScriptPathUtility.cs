@@ -2,24 +2,26 @@ namespace LuaECS.Core
 {
 	using System;
 	using System.IO;
+	using System.Text;
 	using Unity.Collections;
-	using Unity.Entities;
 	using UnityEngine;
+	using Hash128 = Unity.Entities.Hash128;
+	using Object = UnityEngine.Object;
 #if UNITY_EDITOR
 	using UnityEditor;
 #endif
 
 	public static class LuaScriptPathUtility
 	{
-		public const string ScriptsFolderRelative = "Assets/StreamingAssets/lua/scripts";
+		public const string SCRIPTS_FOLDER_RELATIVE = "Assets/StreamingAssets/lua/scripts";
 
 		/// <summary>
 		/// Computes a stable Hash128 for a script name using xxHash3.
 		/// </summary>
-		public static Unity.Entities.Hash128 HashScriptName(string scriptName)
+		public static Hash128 HashScriptName(string scriptName)
 		{
 			var state = new xxHash3.StreamingState(isHash64: false);
-			var bytes = System.Text.Encoding.UTF8.GetBytes(scriptName);
+			var bytes = Encoding.UTF8.GetBytes(scriptName);
 			unsafe
 			{
 				fixed (byte* ptr = bytes)
@@ -28,19 +30,19 @@ namespace LuaECS.Core
 				}
 			}
 			var hash = state.DigestHash128();
-			return new Unity.Entities.Hash128(hash.x, hash.y, hash.z, hash.w);
+			return new Hash128(hash.x, hash.y, hash.z, hash.w);
 		}
 
-		public const string LuaExtension = ".lua";
+		public const string LUA_EXTENSION = ".lua";
 
-		static readonly string s_ScriptsFolderRelativeWithSlash = ScriptsFolderRelative + "/";
-		static readonly string s_ScriptsFolderAbsolute = Path.Combine(
+		static readonly string s_scriptsFolderRelativeWithSlash = SCRIPTS_FOLDER_RELATIVE + "/";
+		static readonly string s_scriptsFolderAbsolute = Path.Combine(
 			Application.streamingAssetsPath,
 			"lua",
 			"scripts"
 		);
 
-		public static string ScriptsFolderAbsolute => s_ScriptsFolderAbsolute;
+		public static string ScriptsFolderAbsolute => s_scriptsFolderAbsolute;
 
 		public static bool TryNormalizeScriptId(string input, out string scriptId, out string error)
 		{
@@ -56,14 +58,14 @@ namespace LuaECS.Core
 			var trimmed = input.Trim();
 			trimmed = trimmed.Replace('\\', '/');
 
-			if (trimmed.StartsWith(ScriptsFolderRelative, StringComparison.OrdinalIgnoreCase))
-				trimmed = trimmed.Substring(ScriptsFolderRelative.Length);
-			if (trimmed.StartsWith(s_ScriptsFolderRelativeWithSlash, StringComparison.OrdinalIgnoreCase))
-				trimmed = trimmed.Substring(s_ScriptsFolderRelativeWithSlash.Length);
+			if (trimmed.StartsWith(SCRIPTS_FOLDER_RELATIVE, StringComparison.OrdinalIgnoreCase))
+				trimmed = trimmed.Substring(SCRIPTS_FOLDER_RELATIVE.Length);
+			if (trimmed.StartsWith(s_scriptsFolderRelativeWithSlash, StringComparison.OrdinalIgnoreCase))
+				trimmed = trimmed.Substring(s_scriptsFolderRelativeWithSlash.Length);
 			trimmed = trimmed.TrimStart('/');
 
-			if (trimmed.EndsWith(LuaExtension, StringComparison.OrdinalIgnoreCase))
-				trimmed = trimmed[..^LuaExtension.Length];
+			if (trimmed.EndsWith(LUA_EXTENSION, StringComparison.OrdinalIgnoreCase))
+				trimmed = trimmed[..^LUA_EXTENSION.Length];
 
 			if (trimmed.Contains("..", StringComparison.Ordinal))
 			{
@@ -109,7 +111,7 @@ namespace LuaECS.Core
 				return string.Empty;
 
 			var relativePath = ScriptIdToRelativePath(normalized);
-			return Path.Combine(ScriptsFolderAbsolute, relativePath + LuaExtension);
+			return Path.Combine(ScriptsFolderAbsolute, relativePath + LUA_EXTENSION);
 		}
 
 		public static bool ScriptExists(string scriptId)
@@ -149,33 +151,29 @@ namespace LuaECS.Core
 			var normalized = assetPath.Replace('\\', '/');
 
 			if (
-				normalized.StartsWith(s_ScriptsFolderRelativeWithSlash, StringComparison.OrdinalIgnoreCase)
+				normalized.StartsWith(s_scriptsFolderRelativeWithSlash, StringComparison.OrdinalIgnoreCase)
 			)
-				normalized = normalized.Substring(s_ScriptsFolderRelativeWithSlash.Length);
-			else if (normalized.StartsWith(ScriptsFolderRelative, StringComparison.OrdinalIgnoreCase))
-				normalized = normalized.Substring(ScriptsFolderRelative.Length);
+				normalized = normalized.Substring(s_scriptsFolderRelativeWithSlash.Length);
+			else if (normalized.StartsWith(SCRIPTS_FOLDER_RELATIVE, StringComparison.OrdinalIgnoreCase))
+				normalized = normalized.Substring(SCRIPTS_FOLDER_RELATIVE.Length);
 			else
 			{
-				error = $"Asset must be inside '{ScriptsFolderRelative}'.";
+				error = $"Asset must be inside '{SCRIPTS_FOLDER_RELATIVE}'.";
 				return false;
 			}
 
-			if (!normalized.EndsWith(LuaExtension, StringComparison.OrdinalIgnoreCase))
+			if (!normalized.EndsWith(LUA_EXTENSION, StringComparison.OrdinalIgnoreCase))
 			{
 				error = "Only .lua files are supported.";
 				return false;
 			}
 
-			var relativeWithoutExtension = normalized[..^LuaExtension.Length];
+			var relativeWithoutExtension = normalized[..^LUA_EXTENSION.Length];
 			return TryNormalizeScriptId(relativeWithoutExtension, out scriptId, out error);
 		}
 
 #if UNITY_EDITOR
-		public static bool TryGetScriptId(
-			UnityEngine.Object asset,
-			out string scriptId,
-			out string error
-		)
+		public static bool TryGetScriptId(Object asset, out string scriptId, out string error)
 		{
 			scriptId = string.Empty;
 			error = string.Empty;
@@ -200,7 +198,7 @@ namespace LuaECS.Core
 				return string.Empty;
 
 			var relativePath = ScriptIdToRelativePath(normalized);
-			return $"{ScriptsFolderRelative}/{relativePath}{LuaExtension}";
+			return $"{SCRIPTS_FOLDER_RELATIVE}/{relativePath}{LUA_EXTENSION}";
 		}
 #endif
 	}

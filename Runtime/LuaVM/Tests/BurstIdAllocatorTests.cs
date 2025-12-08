@@ -1,6 +1,6 @@
 namespace LuaVM.Tests
 {
-	using LuaVM.Burst;
+	using Burst;
 	using NUnit.Framework;
 
 	[TestFixture]

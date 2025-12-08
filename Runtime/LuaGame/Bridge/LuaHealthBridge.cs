@@ -2,7 +2,7 @@ namespace LuaGame.Bridge
 {
 	using AOT;
 	using LuaECS.Core;
-	using LuaGame.Components;
+	using Components;
 	using LuaNET.LuaJIT;
 	using Unity.Burst;
 	using Unity.Collections.LowLevel.Unsafe;
@@ -18,46 +18,46 @@ namespace LuaGame.Bridge
 		public struct HealthBridgeContext
 		{
 			[NativeDisableUnsafePtrRestriction]
-			public ComponentLookup<LuaHealth> HealthLookup;
+			public ComponentLookup<LuaHealth> healthLookup;
 
-			public bool IsValid;
+			public bool isValid;
 		}
 
 		struct HealthContextMarker { }
 
-		static readonly SharedStatic<HealthBridgeContext> s_Context =
+		static readonly SharedStatic<HealthBridgeContext> s_context =
 			SharedStatic<HealthBridgeContext>.GetOrCreate<HealthContextMarker, HealthBridgeContext>();
 
 		public static void UpdateContext(ComponentLookup<LuaHealth> healthLookup)
 		{
-			s_Context.Data = new HealthBridgeContext { HealthLookup = healthLookup, IsValid = true };
+			s_context.Data = new HealthBridgeContext { healthLookup = healthLookup, isValid = true };
 		}
 
 		public static void ClearContext()
 		{
-			s_Context.Data = default;
+			s_context.Data = default;
 		}
 
-		public static void RegisterFunctions(lua_State L)
+		public static void RegisterFunctions(lua_State l)
 		{
-			Lua.lua_newtable(L);
+			Lua.lua_newtable(l);
 
-			Lua.lua_pushcfunction(L, Health_Get);
-			Lua.lua_setfield(L, -2, "get");
+			Lua.lua_pushcfunction(l, Health_Get);
+			Lua.lua_setfield(l, -2, "get");
 
-			Lua.lua_pushcfunction(L, Health_Set);
-			Lua.lua_setfield(L, -2, "set");
+			Lua.lua_pushcfunction(l, Health_Set);
+			Lua.lua_setfield(l, -2, "set");
 
-			Lua.lua_pushcfunction(L, Health_Damage);
-			Lua.lua_setfield(L, -2, "damage");
+			Lua.lua_pushcfunction(l, Health_Damage);
+			Lua.lua_setfield(l, -2, "damage");
 
-			Lua.lua_pushcfunction(L, Health_IsDead);
-			Lua.lua_setfield(L, -2, "is_dead");
+			Lua.lua_pushcfunction(l, Health_IsDead);
+			Lua.lua_setfield(l, -2, "is_dead");
 
-			Lua.lua_pushcfunction(L, Health_Heal);
-			Lua.lua_setfield(L, -2, "heal");
+			Lua.lua_pushcfunction(l, Health_Heal);
+			Lua.lua_setfield(l, -2, "heal");
 
-			Lua.lua_setglobal(L, "health");
+			Lua.lua_setglobal(l, "health");
 		}
 
 		/// <summary>
@@ -66,27 +66,27 @@ namespace LuaGame.Bridge
 		/// </summary>
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
 		[BurstCompile]
-		static int Health_Get(lua_State L)
+		static int Health_Get(lua_State l)
 		{
-			var entityId = (int)Lua.lua_tointeger(L, 1);
+			var entityId = (int)Lua.lua_tointeger(l, 1);
 			var entity = LuaECSBridge.GetEntityFromIdBurst(entityId);
 
 			if (entity == Entity.Null)
 			{
-				Lua.lua_pushnil(L);
+				Lua.lua_pushnil(l);
 				return 1;
 			}
 
-			ref var ctx = ref s_Context.Data;
-			if (!ctx.IsValid || !ctx.HealthLookup.HasComponent(entity))
+			ref var ctx = ref s_context.Data;
+			if (!ctx.isValid || !ctx.healthLookup.HasComponent(entity))
 			{
-				Lua.lua_pushnil(L);
+				Lua.lua_pushnil(l);
 				return 1;
 			}
 
-			var health = ctx.HealthLookup[entity];
-			Lua.lua_pushnumber(L, health.Current);
-			Lua.lua_pushnumber(L, health.Max);
+			var health = ctx.healthLookup[entity];
+			Lua.lua_pushnumber(l, health.current);
+			Lua.lua_pushnumber(l, health.max);
 			return 2;
 		}
 
@@ -96,39 +96,39 @@ namespace LuaGame.Bridge
 		/// </summary>
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
 		[BurstCompile]
-		static int Health_Set(lua_State L)
+		static int Health_Set(lua_State l)
 		{
-			var entityId = (int)Lua.lua_tointeger(L, 1);
+			var entityId = (int)Lua.lua_tointeger(l, 1);
 			var entity = LuaECSBridge.GetEntityFromIdBurst(entityId);
 
 			if (entity == Entity.Null)
 				return 0;
 
-			ref var ctx = ref s_Context.Data;
-			if (!ctx.IsValid || !ctx.HealthLookup.HasComponent(entity))
+			ref var ctx = ref s_context.Data;
+			if (!ctx.isValid || !ctx.healthLookup.HasComponent(entity))
 				return 0;
 
-			var current = (float)Lua.lua_tonumber(L, 2);
-			var health = ctx.HealthLookup[entity];
+			var current = (float)Lua.lua_tonumber(l, 2);
+			var health = ctx.healthLookup[entity];
 
-			health.Current = current;
+			health.current = current;
 
-			if (Lua.lua_gettop(L) >= 3 && Lua.lua_isnumber(L, 3) != 0)
+			if (Lua.lua_gettop(l) >= 3 && Lua.lua_isnumber(l, 3) != 0)
 			{
-				health.Max = (float)Lua.lua_tonumber(L, 3);
+				health.max = (float)Lua.lua_tonumber(l, 3);
 			}
 
-			if (health.Current <= 0)
+			if (health.current <= 0)
 			{
-				health.Current = 0;
-				health.IsDead = true;
+				health.current = 0;
+				health.isDead = true;
 			}
 			else
 			{
-				health.IsDead = false;
+				health.isDead = false;
 			}
 
-			ctx.HealthLookup[entity] = health;
+			ctx.healthLookup[entity] = health;
 			return 0;
 		}
 
@@ -138,23 +138,23 @@ namespace LuaGame.Bridge
 		/// </summary>
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
 		[BurstCompile]
-		static int Health_Damage(lua_State L)
+		static int Health_Damage(lua_State l)
 		{
-			var entityId = (int)Lua.lua_tointeger(L, 1);
+			var entityId = (int)Lua.lua_tointeger(l, 1);
 			var entity = LuaECSBridge.GetEntityFromIdBurst(entityId);
 
 			if (entity == Entity.Null)
 				return 0;
 
-			ref var ctx = ref s_Context.Data;
-			if (!ctx.IsValid || !ctx.HealthLookup.HasComponent(entity))
+			ref var ctx = ref s_context.Data;
+			if (!ctx.isValid || !ctx.healthLookup.HasComponent(entity))
 				return 0;
 
-			var amount = (float)Lua.lua_tonumber(L, 2);
-			var health = ctx.HealthLookup[entity];
+			var amount = (float)Lua.lua_tonumber(l, 2);
+			var health = ctx.healthLookup[entity];
 
 			health.TakeDamage(amount);
-			ctx.HealthLookup[entity] = health;
+			ctx.healthLookup[entity] = health;
 
 			return 0;
 		}
@@ -165,26 +165,26 @@ namespace LuaGame.Bridge
 		/// </summary>
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
 		[BurstCompile]
-		static int Health_IsDead(lua_State L)
+		static int Health_IsDead(lua_State l)
 		{
-			var entityId = (int)Lua.lua_tointeger(L, 1);
+			var entityId = (int)Lua.lua_tointeger(l, 1);
 			var entity = LuaECSBridge.GetEntityFromIdBurst(entityId);
 
 			if (entity == Entity.Null)
 			{
-				Lua.lua_pushboolean(L, 1);
+				Lua.lua_pushboolean(l, 1);
 				return 1;
 			}
 
-			ref var ctx = ref s_Context.Data;
-			if (!ctx.IsValid || !ctx.HealthLookup.HasComponent(entity))
+			ref var ctx = ref s_context.Data;
+			if (!ctx.isValid || !ctx.healthLookup.HasComponent(entity))
 			{
-				Lua.lua_pushboolean(L, 0);
+				Lua.lua_pushboolean(l, 0);
 				return 1;
 			}
 
-			var health = ctx.HealthLookup[entity];
-			Lua.lua_pushboolean(L, health.IsDead ? 1 : 0);
+			var health = ctx.healthLookup[entity];
+			Lua.lua_pushboolean(l, health.isDead ? 1 : 0);
 			return 1;
 		}
 
@@ -194,23 +194,23 @@ namespace LuaGame.Bridge
 		/// </summary>
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
 		[BurstCompile]
-		static int Health_Heal(lua_State L)
+		static int Health_Heal(lua_State l)
 		{
-			var entityId = (int)Lua.lua_tointeger(L, 1);
+			var entityId = (int)Lua.lua_tointeger(l, 1);
 			var entity = LuaECSBridge.GetEntityFromIdBurst(entityId);
 
 			if (entity == Entity.Null)
 				return 0;
 
-			ref var ctx = ref s_Context.Data;
-			if (!ctx.IsValid || !ctx.HealthLookup.HasComponent(entity))
+			ref var ctx = ref s_context.Data;
+			if (!ctx.isValid || !ctx.healthLookup.HasComponent(entity))
 				return 0;
 
-			var amount = (float)Lua.lua_tonumber(L, 2);
-			var health = ctx.HealthLookup[entity];
+			var amount = (float)Lua.lua_tonumber(l, 2);
+			var health = ctx.healthLookup[entity];
 
 			health.Heal(amount);
-			ctx.HealthLookup[entity] = health;
+			ctx.healthLookup[entity] = health;
 
 			return 0;
 		}

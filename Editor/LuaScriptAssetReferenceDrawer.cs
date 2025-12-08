@@ -1,5 +1,5 @@
 #if UNITY_EDITOR
-namespace LuaECS.Editor
+namespace LuaGame.Editor
 {
 	using LuaECS.Components;
 	using LuaECS.Core;
@@ -9,7 +9,7 @@ namespace LuaECS.Editor
 	[CustomPropertyDrawer(typeof(LuaScriptAssetReference))]
 	sealed class LuaScriptAssetReferenceDrawer : PropertyDrawer
 	{
-		static readonly GUIContent s_ScriptFieldContent = new(
+		static readonly GUIContent s_scriptFieldContent = new(
 			"Lua Script",
 			"Drag a .lua file from Assets/StreamingAssets/lua/scripts"
 		);
@@ -64,7 +64,7 @@ namespace LuaECS.Editor
 			EditorGUI.BeginChangeCheck();
 			var newAsset = EditorGUI.ObjectField(
 				assetRect,
-				s_ScriptFieldContent,
+				s_scriptFieldContent,
 				null,
 				typeof(DefaultAsset),
 				false

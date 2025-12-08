@@ -6,6 +6,6 @@ namespace LuaECS.Components
 	[Serializable]
 	public struct LuaPlayerTag : IComponentData
 	{
-		public int PlayerId;
+		public int playerId;
 	}
 }

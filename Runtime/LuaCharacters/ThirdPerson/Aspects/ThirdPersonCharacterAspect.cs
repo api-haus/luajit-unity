@@ -1,5 +1,7 @@
-namespace LuaCharacters.ThirdPerson
+namespace LuaCharacters.ThirdPerson.Aspects
 {
+	using Authoring;
+	using Components;
 	using Unity.CharacterController;
 	using Unity.Entities;
 	using Unity.Mathematics;

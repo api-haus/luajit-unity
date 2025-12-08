@@ -1,11 +1,12 @@
 namespace LuaECS.Demo
 {
-	using LuaECS.Components;
-	using LuaECS.Core;
-	using LuaECS.Systems;
+	using Components;
+	using Core;
 	using LuaVM.Core;
+	using Systems;
 	using Unity.Collections;
 	using Unity.Entities;
+	using Unity.Logging;
 	using Unity.Transforms;
 	using UnityEngine;
 
@@ -53,17 +54,17 @@ namespace LuaECS.Demo
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = bootstrapScript,
-					RequestHash = LuaScriptPathUtility.HashScriptName(bootstrapScript),
-					Fulfilled = false,
+					scriptName = bootstrapScript,
+					requestHash = LuaScriptPathUtility.HashScriptName(bootstrapScript),
+					fulfilled = false,
 				}
 			);
 			m_EntityManager.AddBuffer<LuaCommand>(m_BootstrapEntity);
 			m_EntityManager.AddBuffer<LuaEvent>(m_BootstrapEntity);
-			m_EntityManager.AddComponentData(m_BootstrapEntity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(m_BootstrapEntity, new LuaEntityId { value = 0 });
 
 			m_Initialized = true;
-			Unity.Logging.Log.Info("[FruitDemo] Bootstrap entity created - Lua takes over from here");
+			Log.Info("[FruitDemo] Bootstrap entity created - Lua takes over from here");
 		}
 
 		void Update()
@@ -90,7 +91,7 @@ namespace LuaECS.Demo
 				var isAgent = false;
 				for (var j = 0; j < scripts.Length; j++)
 				{
-					if (scripts[j].ScriptName.ToString().Contains("eater"))
+					if (scripts[j].scriptName.ToString().Contains("eater"))
 					{
 						isAgent = true;
 						break;
@@ -100,16 +101,16 @@ namespace LuaECS.Demo
 				if (isAgent)
 				{
 					Debug.DrawLine(
-						pos + Vector3.left * agentSize,
-						pos + Vector3.right * agentSize,
+						pos + (Vector3.left * agentSize),
+						pos + (Vector3.right * agentSize),
 						agentColor
 					);
 					Debug.DrawLine(
-						pos + Vector3.forward * agentSize,
-						pos + Vector3.back * agentSize,
+						pos + (Vector3.forward * agentSize),
+						pos + (Vector3.back * agentSize),
 						agentColor
 					);
-					Debug.DrawLine(pos + Vector3.up * agentSize, pos + Vector3.down * agentSize, agentColor);
+					Debug.DrawLine(pos + (Vector3.up * agentSize), pos + (Vector3.down * agentSize), agentColor);
 				}
 				else
 				{
@@ -157,7 +158,7 @@ namespace LuaECS.Demo
 				var isAgent = false;
 				for (var j = 0; j < scripts.Length; j++)
 				{
-					if (scripts[j].ScriptName.ToString().Contains("eater"))
+					if (scripts[j].scriptName.ToString().Contains("eater"))
 					{
 						isAgent = true;
 						break;
@@ -181,7 +182,7 @@ namespace LuaECS.Demo
 
 			GUILayout.BeginArea(new Rect(10, 10, 200, 100));
 			GUILayout.Label($"Scripted Entities: {entityCount}");
-			GUILayout.Label($"Bootstrap: Lua-driven");
+			GUILayout.Label("Bootstrap: Lua-driven");
 			GUILayout.EndArea();
 		}
 	}

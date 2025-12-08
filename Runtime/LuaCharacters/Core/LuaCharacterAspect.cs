@@ -1,11 +1,10 @@
-namespace LuaCharacters
+namespace LuaCharacters.Core
 {
 	using Unity.Burst;
 	using Unity.CharacterController;
 	using Unity.Entities;
 	using Unity.Mathematics;
 	using Unity.Physics;
-	using Unity.Transforms;
 	using static Unity.Mathematics.math;
 
 	public struct LuaCharacterUpdateContext
@@ -18,28 +17,28 @@ namespace LuaCharacters
 		: IAspect,
 			IKinematicCharacterProcessor<LuaCharacterUpdateContext>
 	{
-		public readonly KinematicCharacterAspect CharacterAspect;
-		public readonly RefRW<LuaCharacterComponent> Character;
-		public readonly RefRW<LuaCharacterControl> Control;
+		public readonly KinematicCharacterAspect characterAspect;
+		public readonly RefRW<LuaCharacterComponent> character;
+		public readonly RefRW<LuaCharacterControl> control;
 
 		public void PhysicsUpdate(
 			ref LuaCharacterUpdateContext context,
 			ref KinematicCharacterUpdateContext baseContext
 		)
 		{
-			ref var characterComponent = ref Character.ValueRW;
-			ref var characterBody = ref CharacterAspect.CharacterBody.ValueRW;
-			ref var characterPosition = ref CharacterAspect.LocalTransform.ValueRW.Position;
+			ref var characterComponent = ref character.ValueRW;
+			ref var characterBody = ref characterAspect.CharacterBody.ValueRW;
+			ref var characterPosition = ref characterAspect.LocalTransform.ValueRW.Position;
 			var stepHandling = BasicStepAndSlopeHandlingParameters.GetDefault();
 
-			CharacterAspect.Update_Initialize(
+			characterAspect.Update_Initialize(
 				in this,
 				ref context,
 				ref baseContext,
 				ref characterBody,
 				baseContext.Time.DeltaTime
 			);
-			CharacterAspect.Update_ParentMovement(
+			characterAspect.Update_ParentMovement(
 				in this,
 				ref context,
 				ref baseContext,
@@ -47,7 +46,7 @@ namespace LuaCharacters
 				ref characterPosition,
 				characterBody.WasGroundedBeforeCharacterUpdate
 			);
-			CharacterAspect.Update_Grounding(
+			characterAspect.Update_Grounding(
 				in this,
 				ref context,
 				ref baseContext,
@@ -57,29 +56,29 @@ namespace LuaCharacters
 
 			HandleVelocityControl(ref context, ref baseContext);
 
-			CharacterAspect.Update_PreventGroundingFromFutureSlopeChange(
+			characterAspect.Update_PreventGroundingFromFutureSlopeChange(
 				in this,
 				ref context,
 				ref baseContext,
 				ref characterBody,
 				in stepHandling
 			);
-			CharacterAspect.Update_GroundPushing(
+			characterAspect.Update_GroundPushing(
 				in this,
 				ref context,
 				ref baseContext,
 				characterComponent.gravity
 			);
-			CharacterAspect.Update_MovementAndDecollisions(
+			characterAspect.Update_MovementAndDecollisions(
 				in this,
 				ref context,
 				ref baseContext,
 				ref characterBody,
 				ref characterPosition
 			);
-			CharacterAspect.Update_MovingPlatformDetection(ref baseContext, ref characterBody);
-			CharacterAspect.Update_ParentMomentum(ref baseContext, ref characterBody);
-			CharacterAspect.Update_ProcessStatefulCharacterHits();
+			characterAspect.Update_MovingPlatformDetection(ref baseContext, ref characterBody);
+			characterAspect.Update_ParentMomentum(ref baseContext, ref characterBody);
+			characterAspect.Update_ProcessStatefulCharacterHits();
 		}
 
 		void HandleVelocityControl(
@@ -88,9 +87,9 @@ namespace LuaCharacters
 		)
 		{
 			var deltaTime = baseContext.Time.DeltaTime;
-			ref var characterBody = ref CharacterAspect.CharacterBody.ValueRW;
-			ref var characterComponent = ref Character.ValueRW;
-			ref var controlComponent = ref Control.ValueRW;
+			ref var characterBody = ref characterAspect.CharacterBody.ValueRW;
+			ref var characterComponent = ref character.ValueRW;
+			ref var controlComponent = ref control.ValueRW;
 
 			// Rotate move input to account for parent rotation
 			if (characterBody.ParentEntity != Entity.Null)
@@ -107,10 +106,10 @@ namespace LuaCharacters
 			if (characterBody.IsGrounded)
 			{
 				// Movement
-				var characterRotation = CharacterAspect.LocalTransform.ValueRO.Rotation;
+				var characterRotation = characterAspect.LocalTransform.ValueRO.Rotation;
 				var targetVelocity =
-					controlComponent.moveInput.y * MathUtilities.GetForwardFromRotation(characterRotation)
-					+ controlComponent.moveInput.x * MathUtilities.GetRightFromRotation(characterRotation);
+					(controlComponent.moveInput.y * MathUtilities.GetForwardFromRotation(characterRotation))
+					+ (controlComponent.moveInput.x * MathUtilities.GetRightFromRotation(characterRotation));
 				targetVelocity = MathUtilities.ClampToMaxLength(targetVelocity, 1f);
 				targetVelocity *= characterComponent.groundMaxSpeed;
 				CharacterControlUtilities.StandardGroundMove_Interpolated(
@@ -136,10 +135,10 @@ namespace LuaCharacters
 			else
 			{
 				// Air movement
-				var characterRotation = CharacterAspect.LocalTransform.ValueRO.Rotation;
+				var characterRotation = characterAspect.LocalTransform.ValueRO.Rotation;
 				var airAcceleration =
-					controlComponent.moveInput.y * MathUtilities.GetForwardFromRotation(characterRotation)
-					+ controlComponent.moveInput.x * MathUtilities.GetRightFromRotation(characterRotation);
+					(controlComponent.moveInput.y * MathUtilities.GetForwardFromRotation(characterRotation))
+					+ (controlComponent.moveInput.x * MathUtilities.GetRightFromRotation(characterRotation));
 				airAcceleration = MathUtilities.ClampToMaxLength(airAcceleration, 1f);
 				airAcceleration *= characterComponent.airAcceleration;
 				CharacterControlUtilities.StandardAirMove(
@@ -172,10 +171,10 @@ namespace LuaCharacters
 			ref KinematicCharacterUpdateContext baseContext
 		)
 		{
-			ref var characterBody = ref CharacterAspect.CharacterBody.ValueRW;
-			ref var characterRotation = ref CharacterAspect.LocalTransform.ValueRW.Rotation;
-			ref var characterComponent = ref Character.ValueRW;
-			ref var controlComponent = ref Control.ValueRW;
+			ref var characterBody = ref characterAspect.CharacterBody.ValueRW;
+			ref var characterRotation = ref characterAspect.LocalTransform.ValueRW.Rotation;
+			ref var characterComponent = ref character.ValueRW;
+			ref var controlComponent = ref control.ValueRW;
 
 			// Add rotation from parent body
 			KinematicCharacterUtilities.AddVariableRateRotationFromFixedRateRotation(
@@ -189,8 +188,8 @@ namespace LuaCharacters
 			if (lengthsq(controlComponent.moveInput) > 0f)
 			{
 				var moveDirection =
-					controlComponent.moveInput.y * MathUtilities.GetForwardFromRotation(characterRotation)
-					+ controlComponent.moveInput.x * MathUtilities.GetRightFromRotation(characterRotation);
+					(controlComponent.moveInput.y * MathUtilities.GetForwardFromRotation(characterRotation))
+					+ (controlComponent.moveInput.x * MathUtilities.GetRightFromRotation(characterRotation));
 
 				CharacterControlUtilities.SlerpRotationTowardsDirectionAroundUp(
 					ref characterRotation,
@@ -207,8 +206,8 @@ namespace LuaCharacters
 			ref KinematicCharacterUpdateContext baseContext
 		)
 		{
-			ref var characterBody = ref CharacterAspect.CharacterBody.ValueRW;
-			CharacterAspect.Default_UpdateGroundingUp(ref characterBody);
+			ref var characterBody = ref characterAspect.CharacterBody.ValueRW;
+			characterAspect.Default_UpdateGroundingUp(ref characterBody);
 		}
 
 		public bool CanCollideWithHit(
@@ -228,7 +227,7 @@ namespace LuaCharacters
 		)
 		{
 			var stepHandling = BasicStepAndSlopeHandlingParameters.GetDefault();
-			return CharacterAspect.Default_IsGroundedOnHit(
+			return characterAspect.Default_IsGroundedOnHit(
 				in this,
 				ref context,
 				ref baseContext,
@@ -248,12 +247,12 @@ namespace LuaCharacters
 			float hitDistance
 		)
 		{
-			ref var characterBody = ref CharacterAspect.CharacterBody.ValueRW;
-			ref var characterPosition = ref CharacterAspect.LocalTransform.ValueRW.Position;
+			ref var characterBody = ref characterAspect.CharacterBody.ValueRW;
+			ref var characterPosition = ref characterAspect.LocalTransform.ValueRW.Position;
 
 			var stepHandling = BasicStepAndSlopeHandlingParameters.GetDefault();
 
-			CharacterAspect.Default_OnMovementHit(
+			characterAspect.Default_OnMovementHit(
 				in this,
 				ref context,
 				ref baseContext,
@@ -293,7 +292,7 @@ namespace LuaCharacters
 		{
 			var stepHandling = BasicStepAndSlopeHandlingParameters.GetDefault();
 
-			CharacterAspect.Default_ProjectVelocityOnHits(
+			characterAspect.Default_ProjectVelocityOnHits(
 				ref velocity,
 				ref characterIsGrounded,
 				ref characterGroundHit,

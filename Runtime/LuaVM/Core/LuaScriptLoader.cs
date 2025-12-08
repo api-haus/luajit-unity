@@ -10,11 +10,11 @@ namespace LuaVM.Core
 	/// </summary>
 	public enum LuaScriptSourceType : byte
 	{
-		None = 0,
-		String = 1,
-		TextAsset = 2,
-		StreamingAssets = 3,
-		FilePath = 4,
+		NONE = 0,
+		STRING = 1,
+		TEXT_ASSET = 2,
+		STREAMING_ASSETS = 3,
+		FILE_PATH = 4,
 	}
 
 	/// <summary>
@@ -26,27 +26,27 @@ namespace LuaVM.Core
 		/// <summary>
 		/// Unique identifier for the script (used as key in VM).
 		/// </summary>
-		public FixedString64Bytes ScriptId;
+		public FixedString64Bytes scriptId;
 
 		/// <summary>
 		/// Absolute file path for file-based scripts.
 		/// </summary>
-		public FixedString512Bytes FilePath;
+		public FixedString512Bytes filePath;
 
 		/// <summary>
 		/// How the script was loaded.
 		/// </summary>
-		public LuaScriptSourceType SourceType;
+		public LuaScriptSourceType sourceType;
 
 		/// <summary>
 		/// True if the script was loaded successfully.
 		/// </summary>
-		public bool IsValid;
+		public bool isValid;
 
 		/// <summary>
 		/// Error message if loading failed.
 		/// </summary>
-		public FixedString128Bytes Error;
+		public FixedString128Bytes error;
 
 		/// <summary>
 		/// Creates a successful load result.
@@ -59,11 +59,11 @@ namespace LuaVM.Core
 		{
 			return new LuaScriptLoadResult
 			{
-				ScriptId = scriptId,
-				FilePath = filePath,
-				SourceType = sourceType,
-				IsValid = true,
-				Error = default,
+				scriptId = scriptId,
+				filePath = filePath,
+				sourceType = sourceType,
+				isValid = true,
+				error = default,
 			};
 		}
 
@@ -74,11 +74,11 @@ namespace LuaVM.Core
 		{
 			return new LuaScriptLoadResult
 			{
-				ScriptId = default,
-				FilePath = default,
-				SourceType = LuaScriptSourceType.None,
-				IsValid = false,
-				Error = error,
+				scriptId = default,
+				filePath = default,
+				sourceType = LuaScriptSourceType.NONE,
+				isValid = false,
+				error = error,
 			};
 		}
 	}
@@ -89,13 +89,13 @@ namespace LuaVM.Core
 	/// </summary>
 	public static class LuaScriptLoader
 	{
-		static readonly string s_StreamingAssetsLuaPath = Path.Combine(
+		static readonly string s_streamingAssetsLuaPath = Path.Combine(
 			Application.streamingAssetsPath,
 			"lua"
 		);
 
-		static readonly string s_StreamingAssetsScriptsPath = Path.Combine(
-			s_StreamingAssetsLuaPath,
+		static readonly string s_streamingAssetsScriptsPath = Path.Combine(
+			s_streamingAssetsLuaPath,
 			"scripts"
 		);
 
@@ -114,7 +114,7 @@ namespace LuaVM.Core
 
 			return LuaScriptLoadResult.Success(
 				new FixedString64Bytes(scriptId),
-				LuaScriptSourceType.String
+				LuaScriptSourceType.STRING
 			);
 		}
 
@@ -140,7 +140,7 @@ namespace LuaVM.Core
 
 			return LuaScriptLoadResult.Success(
 				new FixedString64Bytes(scriptId),
-				LuaScriptSourceType.TextAsset
+				LuaScriptSourceType.TEXT_ASSET
 			);
 		}
 
@@ -166,7 +166,7 @@ namespace LuaVM.Core
 
 			return LuaScriptLoadResult.Success(
 				new FixedString64Bytes(scriptId),
-				LuaScriptSourceType.TextAsset
+				LuaScriptSourceType.TEXT_ASSET
 			);
 		}
 
@@ -196,7 +196,7 @@ namespace LuaVM.Core
 
 			return LuaScriptLoadResult.Success(
 				new FixedString64Bytes(normalized),
-				LuaScriptSourceType.StreamingAssets,
+				LuaScriptSourceType.STREAMING_ASSETS,
 				filePath: new FixedString512Bytes(filePath)
 			);
 		}
@@ -230,7 +230,7 @@ namespace LuaVM.Core
 
 			return LuaScriptLoadResult.Success(
 				new FixedString64Bytes(scriptId),
-				LuaScriptSourceType.FilePath,
+				LuaScriptSourceType.FILE_PATH,
 				filePath: new FixedString512Bytes(resolvedPath)
 			);
 		}
@@ -264,7 +264,7 @@ namespace LuaVM.Core
 
 			return LuaScriptLoadResult.Success(
 				new FixedString64Bytes(scriptId),
-				LuaScriptSourceType.FilePath,
+				LuaScriptSourceType.FILE_PATH,
 				filePath: new FixedString512Bytes(resolvedPath)
 			);
 		}
@@ -279,16 +279,16 @@ namespace LuaVM.Core
 		{
 			source = null;
 
-			if (!result.IsValid)
+			if (!result.isValid)
 				return false;
 
 			if (
-				result.SourceType != LuaScriptSourceType.StreamingAssets
-				&& result.SourceType != LuaScriptSourceType.FilePath
+				result.sourceType != LuaScriptSourceType.STREAMING_ASSETS
+				&& result.sourceType != LuaScriptSourceType.FILE_PATH
 			)
 				return false;
 
-			var filePath = result.FilePath.ToString();
+			var filePath = result.filePath.ToString();
 			if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
 				return false;
 
@@ -322,16 +322,16 @@ namespace LuaVM.Core
 				return null;
 
 			var withExtension = normalizedPath + ".lua";
-			var fullPath = Path.Combine(s_StreamingAssetsScriptsPath, withExtension);
+			var fullPath = Path.Combine(s_streamingAssetsScriptsPath, withExtension);
 
 			if (File.Exists(fullPath))
 				return fullPath;
 
-			fullPath = Path.Combine(s_StreamingAssetsLuaPath, withExtension);
+			fullPath = Path.Combine(s_streamingAssetsLuaPath, withExtension);
 			if (File.Exists(fullPath))
 				return fullPath;
 
-			return Path.Combine(s_StreamingAssetsScriptsPath, withExtension);
+			return Path.Combine(s_streamingAssetsScriptsPath, withExtension);
 		}
 
 		static string ResolvePath(string path)

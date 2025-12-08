@@ -2,8 +2,8 @@ namespace LuaGame.Systems
 {
 	using LuaECS.Components;
 	using LuaECS.Systems;
-	using LuaGame.Bridge;
-	using LuaGame.Components;
+	using Bridge;
+	using Components;
 	using LuaVM.Core;
 	using Unity.Entities;
 
@@ -48,18 +48,18 @@ namespace LuaGame.Systems
 					.WithEntityAccess()
 			)
 			{
-				if (health.ValueRO.Current <= 0 && !health.ValueRO.IsDead)
+				if (health.ValueRO.current <= 0 && !health.ValueRO.isDead)
 				{
-					health.ValueRW.IsDead = true;
+					health.ValueRW.isDead = true;
 
 					events.Add(
 						new LuaEvent
 						{
-							EventName = "OnDeath",
-							Source = entity,
-							Target = entity,
-							IntParam = 0,
-							FloatParam = health.ValueRO.Max,
+							eventName = "OnDeath",
+							source = entity,
+							target = entity,
+							intParam = 0,
+							floatParam = health.ValueRO.max,
 						}
 					);
 				}

@@ -13,9 +13,9 @@ namespace LuaGame.Tests
 		{
 			var health = LuaHealth.Create(100f);
 
-			Assert.AreEqual(100f, health.Max);
-			Assert.AreEqual(100f, health.Current);
-			Assert.IsFalse(health.IsDead);
+			Assert.AreEqual(100f, health.max);
+			Assert.AreEqual(100f, health.current);
+			Assert.IsFalse(health.isDead);
 		}
 
 		[Test]
@@ -25,8 +25,8 @@ namespace LuaGame.Tests
 
 			health.TakeDamage(30f);
 
-			Assert.AreEqual(70f, health.Current);
-			Assert.IsFalse(health.IsDead);
+			Assert.AreEqual(70f, health.current);
+			Assert.IsFalse(health.isDead);
 		}
 
 		[Test]
@@ -36,8 +36,8 @@ namespace LuaGame.Tests
 
 			health.TakeDamage(100f);
 
-			Assert.AreEqual(0f, health.Current);
-			Assert.IsTrue(health.IsDead);
+			Assert.AreEqual(0f, health.current);
+			Assert.IsTrue(health.isDead);
 		}
 
 		[Test]
@@ -47,8 +47,8 @@ namespace LuaGame.Tests
 
 			health.TakeDamage(150f);
 
-			Assert.AreEqual(0f, health.Current);
-			Assert.IsTrue(health.IsDead);
+			Assert.AreEqual(0f, health.current);
+			Assert.IsTrue(health.isDead);
 		}
 
 		[Test]
@@ -56,11 +56,11 @@ namespace LuaGame.Tests
 		{
 			var health = LuaHealth.Create(100f);
 			health.TakeDamage(100f);
-			Assert.IsTrue(health.IsDead);
+			Assert.IsTrue(health.isDead);
 
 			health.TakeDamage(50f);
 
-			Assert.AreEqual(0f, health.Current);
+			Assert.AreEqual(0f, health.current);
 		}
 
 		[Test]
@@ -71,7 +71,7 @@ namespace LuaGame.Tests
 
 			health.Heal(30f);
 
-			Assert.AreEqual(80f, health.Current);
+			Assert.AreEqual(80f, health.current);
 		}
 
 		[Test]
@@ -82,7 +82,7 @@ namespace LuaGame.Tests
 
 			health.Heal(50f);
 
-			Assert.AreEqual(100f, health.Current);
+			Assert.AreEqual(100f, health.current);
 		}
 
 		[Test]
@@ -90,12 +90,12 @@ namespace LuaGame.Tests
 		{
 			var health = LuaHealth.Create(100f);
 			health.TakeDamage(100f);
-			Assert.IsTrue(health.IsDead);
+			Assert.IsTrue(health.isDead);
 
 			health.Heal(50f);
 
-			Assert.AreEqual(0f, health.Current);
-			Assert.IsTrue(health.IsDead);
+			Assert.AreEqual(0f, health.current);
+			Assert.IsTrue(health.isDead);
 		}
 
 		[Test]
@@ -116,9 +116,9 @@ namespace LuaGame.Tests
 		{
 			var health = new LuaHealth
 			{
-				Current = 0,
-				Max = 0,
-				IsDead = false,
+				current = 0,
+				max = 0,
+				isDead = false,
 			};
 
 			Assert.AreEqual(0f, health.HealthPercent);

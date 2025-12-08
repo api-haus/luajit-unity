@@ -11,7 +11,7 @@ namespace LuaVM.Core
 	/// Delegate for registering custom bridge functions with the Lua VM.
 	/// Called during VM initialization after standard libraries are loaded.
 	/// </summary>
-	public delegate void LuaBridgeRegistration(lua_State L);
+	public delegate void LuaBridgeRegistration(lua_State l);
 
 	/// <summary>
 	/// Manages Lua VM lifecycle, script loading, and execution.
@@ -26,7 +26,7 @@ namespace LuaVM.Core
 		readonly Dictionary<string, int> m_StateRefs = new();
 		readonly List<LuaBridgeRegistration> m_BridgeRegistrations = new();
 		bool m_Disposed;
-		string m_BasePath;
+		readonly string m_BasePath;
 
 		public lua_State State => m_State;
 		public bool IsValid => m_State.IsNotNull;
@@ -43,10 +43,7 @@ namespace LuaVM.Core
 				return;
 			}
 
-			if (Instance != null)
-			{
-				Instance.Dispose();
-			}
+			Instance?.Dispose();
 
 			Instance = this;
 			m_BasePath = basePath ?? Path.Combine(Application.streamingAssetsPath, "lua");
@@ -171,21 +168,21 @@ namespace LuaVM.Core
 		/// <returns>True if script loaded successfully.</returns>
 		public bool LoadScript(LuaScriptLoadResult loadResult)
 		{
-			if (!loadResult.IsValid)
+			if (!loadResult.isValid)
 			{
-				Log.Error("[LuaVM] Invalid load result: {0}", loadResult.Error.ToString());
+				Log.Error("[LuaVM] Invalid load result: {0}", loadResult.error.ToString());
 				return false;
 			}
 
-			var scriptId = loadResult.ScriptId.ToString();
+			var scriptId = loadResult.scriptId.ToString();
 			if (m_ScriptRefs.ContainsKey(scriptId))
 				return true;
 
-			return loadResult.SourceType switch
+			return loadResult.sourceType switch
 			{
-				LuaScriptSourceType.StreamingAssets or LuaScriptSourceType.FilePath => LoadScriptFromFile(
+				LuaScriptSourceType.STREAMING_ASSETS or LuaScriptSourceType.FILE_PATH => LoadScriptFromFile(
 					scriptId,
-					loadResult.FilePath.ToString()
+					loadResult.filePath.ToString()
 				),
 				_ => false,
 			};
@@ -219,13 +216,13 @@ namespace LuaVM.Core
 		public bool LoadScriptFromTextAsset(TextAsset asset)
 		{
 			var validation = LuaScriptLoader.ValidateTextAsset(asset);
-			if (!validation.IsValid)
+			if (!validation.isValid)
 			{
-				Log.Error("[LuaVM] Invalid TextAsset: {0}", validation.Error.ToString());
+				Log.Error("[LuaVM] Invalid TextAsset: {0}", validation.error.ToString());
 				return false;
 			}
 
-			var scriptId = validation.ScriptId.ToString();
+			var scriptId = validation.scriptId.ToString();
 			if (m_ScriptRefs.ContainsKey(scriptId))
 				return true;
 
@@ -241,9 +238,9 @@ namespace LuaVM.Core
 		public bool LoadScriptFromTextAsset(string scriptId, TextAsset asset)
 		{
 			var validation = LuaScriptLoader.ValidateTextAsset(scriptId, asset);
-			if (!validation.IsValid)
+			if (!validation.isValid)
 			{
-				Log.Error("[LuaVM] Invalid TextAsset: {0}", validation.Error.ToString());
+				Log.Error("[LuaVM] Invalid TextAsset: {0}", validation.error.ToString());
 				return false;
 			}
 
@@ -371,13 +368,13 @@ namespace LuaVM.Core
 		/// </summary>
 		public bool ReloadScript(LuaScriptLoadResult loadResult)
 		{
-			if (!loadResult.IsValid)
+			if (!loadResult.isValid)
 			{
-				Log.Error("[LuaVM] Invalid load result for reload: {0}", loadResult.Error.ToString());
+				Log.Error("[LuaVM] Invalid load result for reload: {0}", loadResult.error.ToString());
 				return false;
 			}
 
-			var scriptId = loadResult.ScriptId.ToString();
+			var scriptId = loadResult.scriptId.ToString();
 
 			if (m_ScriptRefs.TryGetValue(scriptId, out var oldRef))
 			{

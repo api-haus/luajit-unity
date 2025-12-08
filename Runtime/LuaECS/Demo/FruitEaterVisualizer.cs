@@ -1,9 +1,7 @@
 namespace LuaECS.Tests
 {
-	using System.Collections;
 	using System.Collections.Generic;
-	using LuaECS.Components;
-	using LuaECS.Core;
+	using Components;
 	using Unity.Collections;
 	using Unity.Entities;
 	using Unity.Transforms;
@@ -76,14 +74,14 @@ namespace LuaECS.Tests
 			{
 				var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
 				go.GetComponent<MeshRenderer>().material = mat;
-				Object.Destroy(go.GetComponent<Collider>());
+				Destroy(go.GetComponent<Collider>());
 				go.transform.localScale = Vector3.one * scale;
 				visuals.Add(go);
 			}
 
 			while (visuals.Count > transforms.Length)
 			{
-				Object.Destroy(visuals[^1]);
+				Destroy(visuals[^1]);
 				visuals.RemoveAt(visuals.Count - 1);
 			}
 
@@ -97,15 +95,15 @@ namespace LuaECS.Tests
 		{
 			foreach (var go in m_AgentVisuals)
 				if (go != null)
-					Object.Destroy(go);
+					Destroy(go);
 			foreach (var go in m_FruitVisuals)
 				if (go != null)
-					Object.Destroy(go);
+					Destroy(go);
 
 			if (m_AgentMat != null)
-				Object.Destroy(m_AgentMat);
+				Destroy(m_AgentMat);
 			if (m_FruitMat != null)
-				Object.Destroy(m_FruitMat);
+				Destroy(m_FruitMat);
 		}
 	}
 }

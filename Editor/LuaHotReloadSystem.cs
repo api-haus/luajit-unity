@@ -1,10 +1,9 @@
 #if UNITY_EDITOR
-namespace LuaECS.Editor
+namespace LuaGame.Editor
 {
 	using System;
 	using System.Collections.Concurrent;
 	using System.IO;
-	using LuaECS.Core;
 	using LuaVM.Core;
 	using Unity.Entities;
 	using Unity.Logging;

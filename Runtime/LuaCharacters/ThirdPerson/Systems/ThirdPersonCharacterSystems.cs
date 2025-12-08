@@ -1,5 +1,7 @@
-namespace LuaCharacters.ThirdPerson
+namespace LuaCharacters.ThirdPerson.Systems
 {
+	using Aspects;
+	using Components;
 	using Unity.Burst;
 	using Unity.Burst.Intrinsics;
 	using Unity.CharacterController;

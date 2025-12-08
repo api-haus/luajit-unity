@@ -1,7 +1,7 @@
 namespace LuaECS.Systems.Support
 {
-	using LuaECS.Components;
-	using LuaECS.Core;
+	using Components;
+	using Core;
 	using LuaVM.Core;
 	using Unity.Collections;
 	using Unity.Entities;
@@ -14,7 +14,7 @@ namespace LuaECS.Systems.Support
 	[UpdateInGroup(typeof(InitializationSystemGroup))]
 	public partial class LuaScriptFulfillmentSystem : SystemBase
 	{
-		LuaVMManager m_VM;
+		LuaVMManager m_Vm;
 		EntityQuery m_RequestQuery;
 
 		protected override void OnCreate()
@@ -30,17 +30,17 @@ namespace LuaECS.Systems.Support
 
 		protected override void OnStartRunning()
 		{
-			m_VM = LuaVMManager.Instance ?? LuaVMManager.GetOrCreate();
+			m_Vm = LuaVMManager.Instance ?? LuaVMManager.GetOrCreate();
 		}
 
 		protected override void OnUpdate()
 		{
 			LuaEntityRegistry.BeginFrame(EntityManager);
 
-			if (m_VM == null || !m_VM.IsValid)
+			if (m_Vm == null || !m_Vm.IsValid)
 			{
 				if (LuaVMManager.Instance != null && LuaVMManager.Instance.IsValid)
-					m_VM = LuaVMManager.Instance;
+					m_Vm = LuaVMManager.Instance;
 				else
 					return;
 			}
@@ -66,7 +66,7 @@ namespace LuaECS.Systems.Support
 				var hasUnfulfilled = false;
 				for (var i = 0; i < requests.Length; i++)
 				{
-					if (!requests[i].Fulfilled)
+					if (!requests[i].fulfilled)
 					{
 						hasUnfulfilled = true;
 						break;
@@ -89,23 +89,23 @@ namespace LuaECS.Systems.Support
 				for (var i = 0; i < requests.Length; i++)
 				{
 					var request = requests[i];
-					if (request.Fulfilled)
+					if (request.fulfilled)
 						continue;
 
-					if (HasScriptWithHash(scripts, request.RequestHash))
+					if (HasScriptWithHash(scripts, request.requestHash))
 					{
-						request.Fulfilled = true;
+						request.fulfilled = true;
 						requests[i] = request;
 						Log.Verbose("[LuaFulfillment] Skipping duplicate request hash for entity {0}", entity);
 						continue;
 					}
 
-					var scriptName = LuaScriptPathUtility.NormalizeScriptId(request.ScriptName.ToString());
+					var scriptName = LuaScriptPathUtility.NormalizeScriptId(request.scriptName.ToString());
 
 					if (string.IsNullOrEmpty(scriptName))
 					{
 						Log.Error("[LuaFulfillment] Script name is empty for entity {0}", entity);
-						request.Fulfilled = true;
+						request.fulfilled = true;
 						requests[i] = request;
 						continue;
 					}
@@ -116,20 +116,20 @@ namespace LuaECS.Systems.Support
 							"[LuaFulfillment] Script file missing: {0}",
 							LuaScriptPathUtility.GetScriptFilePath(scriptName)
 						);
-						request.Fulfilled = true;
+						request.fulfilled = true;
 						requests[i] = request;
 						continue;
 					}
 
-					if (!m_VM.LoadScript(scriptName))
+					if (!m_Vm.LoadScript(scriptName))
 					{
 						Log.Error("[LuaFulfillment] Failed to load script: {0}", scriptName);
-						request.Fulfilled = true;
+						request.fulfilled = true;
 						requests[i] = request;
 						continue;
 					}
 
-					var stateRef = m_VM.CreateEntityState(scriptName, entityId);
+					var stateRef = m_Vm.CreateEntityState(scriptName, entityId);
 					if (stateRef < 0)
 					{
 						Log.Error(
@@ -137,7 +137,7 @@ namespace LuaECS.Systems.Support
 							scriptName,
 							entityId
 						);
-						request.Fulfilled = true;
+						request.fulfilled = true;
 						requests[i] = request;
 						continue;
 					}
@@ -146,11 +146,11 @@ namespace LuaECS.Systems.Support
 					scripts.Add(
 						new LuaScript
 						{
-							ScriptName = new FixedString64Bytes(scriptName),
-							StateRef = stateRef,
-							EntityIndex = entityId,
-							RequestHash = request.RequestHash,
-							Disabled = false,
+							scriptName = new FixedString64Bytes(scriptName),
+							stateRef = stateRef,
+							entityIndex = entityId,
+							requestHash = request.requestHash,
+							disabled = false,
 						}
 					);
 
@@ -161,10 +161,10 @@ namespace LuaECS.Systems.Support
 						stateRef
 					);
 
-					m_VM.CallInit(scriptName, entityId, stateRef);
+					m_Vm.CallInit(scriptName, entityId, stateRef);
 
 					requests = EntityManager.GetBuffer<LuaScriptRequest>(entity);
-					request.Fulfilled = true;
+					request.fulfilled = true;
 					requests[i] = request;
 				}
 			}
@@ -177,7 +177,7 @@ namespace LuaECS.Systems.Support
 		{
 			for (var i = 0; i < scripts.Length; i++)
 			{
-				if (scripts[i].RequestHash == hash)
+				if (scripts[i].requestHash == hash)
 					return true;
 			}
 			return false;
@@ -196,7 +196,7 @@ namespace LuaECS.Systems.Support
 			for (var i = 0; i < scripts.Length; i++)
 			{
 				var script = scripts[i];
-				if (script.ScriptName.ToString() == scriptName && !script.Disabled && script.StateRef >= 0)
+				if (script.scriptName.ToString() == scriptName && !script.disabled && script.stateRef >= 0)
 				{
 					DisableScriptAtIndex(entity, scripts, i);
 					return true;
@@ -218,7 +218,7 @@ namespace LuaECS.Systems.Support
 			for (var i = 0; i < scripts.Length; i++)
 			{
 				var script = scripts[i];
-				if (script.RequestHash == hash && !script.Disabled && script.StateRef >= 0)
+				if (script.requestHash == hash && !script.disabled && script.stateRef >= 0)
 				{
 					DisableScriptAtIndex(entity, scripts, i);
 					return true;
@@ -230,22 +230,22 @@ namespace LuaECS.Systems.Support
 		void DisableScriptAtIndex(Entity entity, DynamicBuffer<LuaScript> scripts, int index)
 		{
 			var script = scripts[index];
-			var scriptName = script.ScriptName.ToString();
+			var scriptName = script.scriptName.ToString();
 
-			if (m_VM != null && m_VM.IsValid)
+			if (m_Vm != null && m_Vm.IsValid)
 			{
-				m_VM.CallFunction(scriptName, "OnDestroy", script.EntityIndex, script.StateRef);
-				m_VM.ReleaseEntityState(scriptName, script.EntityIndex, script.StateRef);
+				m_Vm.CallFunction(scriptName, "OnDestroy", script.entityIndex, script.stateRef);
+				m_Vm.ReleaseEntityState(scriptName, script.entityIndex, script.stateRef);
 			}
 
 			Log.Verbose(
 				"[LuaFulfillment] Disabled script '{0}' on entity {1}",
 				scriptName,
-				script.EntityIndex
+				script.entityIndex
 			);
 
-			script.StateRef = -1;
-			script.Disabled = true;
+			script.stateRef = -1;
+			script.disabled = true;
 			scripts[index] = script;
 		}
 

@@ -1,4 +1,4 @@
-namespace LuaCharacters
+namespace LuaCharacters.Core
 {
 	using Unity.Burst;
 	using Unity.Burst.Intrinsics;

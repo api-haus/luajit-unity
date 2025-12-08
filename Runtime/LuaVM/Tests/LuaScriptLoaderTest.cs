@@ -1,6 +1,6 @@
 namespace LuaVM.Tests
 {
-	using LuaVM.Core;
+	using Core;
 	using NUnit.Framework;
 	using UnityEngine;
 
@@ -14,9 +14,9 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.ValidateScriptId("test_script");
 
-			Assert.IsTrue(result.IsValid);
-			Assert.AreEqual("test_script", result.ScriptId.ToString());
-			Assert.AreEqual(LuaScriptSourceType.String, result.SourceType);
+			Assert.IsTrue(result.isValid);
+			Assert.AreEqual("test_script", result.scriptId.ToString());
+			Assert.AreEqual(LuaScriptSourceType.STRING, result.sourceType);
 		}
 
 		[Test]
@@ -24,8 +24,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.ValidateScriptId("");
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("Script ID cannot be empty", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("Script ID cannot be empty", result.error.ToString());
 		}
 
 		[Test]
@@ -33,8 +33,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.ValidateScriptId(null);
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("Script ID cannot be empty", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("Script ID cannot be empty", result.error.ToString());
 		}
 
 		[Test]
@@ -44,8 +44,8 @@ namespace LuaVM.Tests
 
 			var result = LuaScriptLoader.ValidateScriptId(longId);
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("Script ID too long (max 64 bytes)", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("Script ID too long (max 64 bytes)", result.error.ToString());
 		}
 
 		[Test]
@@ -53,8 +53,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.ValidateTextAsset(null);
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("TextAsset is null", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("TextAsset is null", result.error.ToString());
 		}
 
 		[Test]
@@ -62,8 +62,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.ValidateTextAsset("custom_id", null);
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("TextAsset is null", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("TextAsset is null", result.error.ToString());
 		}
 
 		[Test]
@@ -72,8 +72,8 @@ namespace LuaVM.Tests
 			var asset = new TextAsset("print('test')");
 			var result = LuaScriptLoader.ValidateTextAsset("", asset);
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("Script ID cannot be empty", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("Script ID cannot be empty", result.error.ToString());
 		}
 
 		[Test]
@@ -81,8 +81,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.FromStreamingAssets("");
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("Relative path cannot be empty", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("Relative path cannot be empty", result.error.ToString());
 		}
 
 		[Test]
@@ -90,8 +90,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.FromStreamingAssets(null);
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("Relative path cannot be empty", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("Relative path cannot be empty", result.error.ToString());
 		}
 
 		[Test]
@@ -99,8 +99,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.FromStreamingAssets("nonexistent_script_12345");
 
-			Assert.IsFalse(result.IsValid);
-			Assert.IsTrue(result.Error.ToString().Contains("not found"));
+			Assert.IsFalse(result.isValid);
+			Assert.IsTrue(result.error.ToString().Contains("not found"));
 		}
 
 		[Test]
@@ -109,9 +109,9 @@ namespace LuaVM.Tests
 			// Since file doesn't exist, result is failure, but error message contains normalized path
 			var result = LuaScriptLoader.FromStreamingAssets("subfolder\\script.lua");
 
-			Assert.IsFalse(result.IsValid, "Should fail for non-existent file");
+			Assert.IsFalse(result.isValid, "Should fail for non-existent file");
 			Assert.IsTrue(
-				result.Error.ToString().Contains("subfolder/script"),
+				result.error.ToString().Contains("subfolder/script"),
 				"Error message should contain normalized path"
 			);
 		}
@@ -121,8 +121,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.FromFile("");
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("File path cannot be empty", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("File path cannot be empty", result.error.ToString());
 		}
 
 		[Test]
@@ -130,8 +130,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.FromFile(null);
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("File path cannot be empty", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("File path cannot be empty", result.error.ToString());
 		}
 
 		[Test]
@@ -139,8 +139,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.FromFile("/nonexistent/path/script.lua");
 
-			Assert.IsFalse(result.IsValid);
-			Assert.IsTrue(result.Error.ToString().Contains("not found"));
+			Assert.IsFalse(result.isValid);
+			Assert.IsTrue(result.error.ToString().Contains("not found"));
 		}
 
 		[Test]
@@ -148,8 +148,8 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoader.FromFile("", "/some/path.lua");
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("Script ID cannot be empty", result.Error.ToString());
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("Script ID cannot be empty", result.error.ToString());
 		}
 
 		[Test]
@@ -179,13 +179,13 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoadResult.Success(
 				new Unity.Collections.FixedString64Bytes("test"),
-				LuaScriptSourceType.StreamingAssets
+				LuaScriptSourceType.STREAMING_ASSETS
 			);
 
-			Assert.IsTrue(result.IsValid);
-			Assert.AreEqual("test", result.ScriptId.ToString());
-			Assert.AreEqual(LuaScriptSourceType.StreamingAssets, result.SourceType);
-			Assert.IsTrue(result.Error.IsEmpty);
+			Assert.IsTrue(result.isValid);
+			Assert.AreEqual("test", result.scriptId.ToString());
+			Assert.AreEqual(LuaScriptSourceType.STREAMING_ASSETS, result.sourceType);
+			Assert.IsTrue(result.error.IsEmpty);
 		}
 
 		[Test]
@@ -193,9 +193,9 @@ namespace LuaVM.Tests
 		{
 			var result = LuaScriptLoadResult.Failure("Test error message");
 
-			Assert.IsFalse(result.IsValid);
-			Assert.AreEqual("Test error message", result.Error.ToString());
-			Assert.AreEqual(LuaScriptSourceType.None, result.SourceType);
+			Assert.IsFalse(result.isValid);
+			Assert.AreEqual("Test error message", result.error.ToString());
+			Assert.AreEqual(LuaScriptSourceType.NONE, result.sourceType);
 		}
 	}
 }

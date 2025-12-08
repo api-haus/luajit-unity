@@ -1,8 +1,8 @@
 namespace LuaECS.Tests
 {
 	using System.Collections;
-	using LuaECS.Components;
-	using LuaECS.Core;
+	using Components;
+	using Core;
 	using NUnit.Framework;
 	using Unity.Collections;
 	using Unity.Entities;
@@ -150,14 +150,21 @@ namespace LuaECS.Tests
 			var destroyed = LuaEntityRegistry.Destroy(id, ecb);
 
 			Assert.IsTrue(destroyed, "Destroy should return true");
-			Assert.IsTrue(LuaEntityRegistry.IsMarkedForDestruction(id), "Should be marked for destruction");
+			Assert.IsTrue(
+				LuaEntityRegistry.IsMarkedForDestruction(id),
+				"Should be marked for destruction"
+			);
 			Assert.IsTrue(LuaEntityRegistry.Contains(id), "Should still be in registry before commit");
 
 			yield return null;
 			LuaEntityRegistry.CommitPendingDestructions();
 
 			Assert.IsFalse(LuaEntityRegistry.Contains(id), "Should be removed after commit");
-			Assert.AreEqual(Entity.Null, LuaEntityRegistry.GetEntityFromId(id), "GetEntityFromId should return null");
+			Assert.AreEqual(
+				Entity.Null,
+				LuaEntityRegistry.GetEntityFromId(id),
+				"GetEntityFromId should return null"
+			);
 		}
 
 		[UnityTest]
@@ -228,7 +235,11 @@ namespace LuaECS.Tests
 
 			Assert.Greater(id, 0, "Should assign positive ID");
 			Assert.IsTrue(LuaEntityRegistry.Contains(id), "Should be in registry");
-			Assert.AreEqual(entity, LuaEntityRegistry.GetEntityFromId(id), "Should resolve to same entity");
+			Assert.AreEqual(
+				entity,
+				LuaEntityRegistry.GetEntityFromId(id),
+				"Should resolve to same entity"
+			);
 
 			yield return null;
 		}
@@ -253,7 +264,7 @@ namespace LuaECS.Tests
 		{
 			var ecb = CreateECB();
 			var entity = m_EntityManager.CreateEntity(typeof(LocalTransform));
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 100 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 100 });
 
 			LuaEntityRegistry.RegisterImmediate(entity, 100, m_EntityManager);
 
@@ -292,7 +303,11 @@ namespace LuaECS.Tests
 		public IEnumerator GetEntityFromId_InvalidIds_ReturnsNull()
 		{
 			Assert.AreEqual(Entity.Null, LuaEntityRegistry.GetEntityFromId(0), "ID 0 should return null");
-			Assert.AreEqual(Entity.Null, LuaEntityRegistry.GetEntityFromId(-1), "Negative ID should return null");
+			Assert.AreEqual(
+				Entity.Null,
+				LuaEntityRegistry.GetEntityFromId(-1),
+				"Negative ID should return null"
+			);
 			Assert.AreEqual(
 				Entity.Null,
 				LuaEntityRegistry.GetEntityFromId(-999),
@@ -321,7 +336,11 @@ namespace LuaECS.Tests
 		[UnityTest]
 		public IEnumerator GetIdFromEntity_NullEntity_ReturnsNegativeOne()
 		{
-			Assert.AreEqual(-1, LuaEntityRegistry.GetIdFromEntity(Entity.Null), "Null entity should return -1");
+			Assert.AreEqual(
+				-1,
+				LuaEntityRegistry.GetIdFromEntity(Entity.Null),
+				"Null entity should return -1"
+			);
 			yield return null;
 		}
 
@@ -329,7 +348,11 @@ namespace LuaECS.Tests
 		public IEnumerator GetIdFromEntity_UnregisteredEntity_ReturnsNegativeOne()
 		{
 			var entity = m_EntityManager.CreateEntity(typeof(LocalTransform));
-			Assert.AreEqual(-1, LuaEntityRegistry.GetIdFromEntity(entity), "Unregistered entity should return -1");
+			Assert.AreEqual(
+				-1,
+				LuaEntityRegistry.GetIdFromEntity(entity),
+				"Unregistered entity should return -1"
+			);
 			yield return null;
 		}
 
@@ -368,7 +391,11 @@ namespace LuaECS.Tests
 			// SyncWithWorld should detect this and auto-cleanup
 			LuaEntityRegistry.SyncWithWorld(m_EntityManager);
 
-			Assert.AreEqual(Entity.Null, LuaEntityRegistry.GetEntityFromId(id), "Should return null for destroyed entity");
+			Assert.AreEqual(
+				Entity.Null,
+				LuaEntityRegistry.GetEntityFromId(id),
+				"Should return null for destroyed entity"
+			);
 			Assert.IsFalse(LuaEntityRegistry.Contains(id), "Should auto-remove from registry");
 		}
 

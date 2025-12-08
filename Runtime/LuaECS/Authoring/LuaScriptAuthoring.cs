@@ -1,6 +1,6 @@
 namespace LuaECS.Authoring
 {
-	using LuaECS.Components;
+	using Components;
 	using UnityEngine;
 
 	[RequireComponent(typeof(LuaScriptBufferAuthoring))]

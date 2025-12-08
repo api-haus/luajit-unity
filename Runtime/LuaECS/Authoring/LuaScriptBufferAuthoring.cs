@@ -1,15 +1,15 @@
 namespace LuaECS.Authoring
 {
 	using System.Collections.Generic;
-	using LuaECS.Components;
-	using LuaECS.Core;
+	using Components;
+	using Core;
 	using Unity.Collections;
 	using Unity.Entities;
 	using UnityEngine;
 
 	[DisallowMultipleComponent]
 	[ExecuteAlways]
-	public sealed partial class LuaScriptBufferAuthoring : MonoBehaviour
+	public sealed class LuaScriptBufferAuthoring : MonoBehaviour
 	{
 		void OnEnable()
 		{
@@ -64,9 +64,9 @@ namespace LuaECS.Authoring
 					requestsBuffer.Add(
 						new LuaScriptRequest
 						{
-							ScriptName = new FixedString64Bytes(scriptId),
-							RequestHash = hash,
-							Fulfilled = false,
+							scriptName = new FixedString64Bytes(scriptId),
+							requestHash = hash,
+							fulfilled = false,
 						}
 					);
 				}
@@ -76,7 +76,7 @@ namespace LuaECS.Authoring
 
 				// Add LuaEntityId with sentinel value 0. The fulfillment system will assign
 				// a real ID (> 0) when the script is first initialized.
-				AddComponent(entity, new LuaEntityId { Value = 0 });
+				AddComponent(entity, new LuaEntityId { value = 0 });
 
 				m_Scripts.Clear();
 			}

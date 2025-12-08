@@ -1,14 +1,13 @@
 namespace LuaECS.Tests
 {
 	using System.Collections;
-	using LuaECS.Components;
-	using LuaECS.Core;
+	using Components;
+	using Core;
 	using LuaVM.Core;
 	using NUnit.Framework;
 	using Unity.Entities;
 	using Unity.Mathematics;
 	using Unity.Transforms;
-	using UnityEngine;
 	using UnityEngine.TestTools;
 
 	/// <summary>
@@ -54,10 +53,10 @@ namespace LuaECS.Tests
 			events.Add(
 				new LuaEvent
 				{
-					EventName = "test_event",
-					Source = entity,
-					Target = entity,
-					IntParam = 42,
+					eventName = "test_event",
+					source = entity,
+					target = entity,
+					intParam = 42,
 				}
 			);
 
@@ -79,9 +78,9 @@ namespace LuaECS.Tests
 
 			var events = m_EntityManager.GetBuffer<LuaEvent>(entity);
 
-			events.Add(new LuaEvent { EventName = "event_1", IntParam = 1 });
-			events.Add(new LuaEvent { EventName = "event_2", IntParam = 2 });
-			events.Add(new LuaEvent { EventName = "event_3", IntParam = 3 });
+			events.Add(new LuaEvent { eventName = "event_1", intParam = 1 });
+			events.Add(new LuaEvent { eventName = "event_2", intParam = 2 });
+			events.Add(new LuaEvent { eventName = "event_3", intParam = 3 });
 
 			Assert.AreEqual(3, events.Length, "Should have 3 pending events");
 
@@ -104,10 +103,10 @@ namespace LuaECS.Tests
 			targetEvents.Add(
 				new LuaEvent
 				{
-					EventName = "on_attacked",
-					Source = source,
-					Target = target,
-					IntParam = 10,
+					eventName = "on_attacked",
+					source = source,
+					target = target,
+					intParam = 10,
 				}
 			);
 
@@ -128,23 +127,23 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = "fruit",
-					RequestHash = LuaScriptPathUtility.HashScriptName("fruit"),
-					Fulfilled = false,
+					scriptName = "fruit",
+					requestHash = LuaScriptPathUtility.HashScriptName("fruit"),
+					fulfilled = false,
 				}
 			);
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = "fruit_eater",
-					RequestHash = LuaScriptPathUtility.HashScriptName("fruit_eater"),
-					Fulfilled = false,
+					scriptName = "fruit_eater",
+					requestHash = LuaScriptPathUtility.HashScriptName("fruit_eater"),
+					fulfilled = false,
 				}
 			);
 
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(0, 0, 0));
 
 			yield return null;
@@ -153,12 +152,12 @@ namespace LuaECS.Tests
 			var scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
 			Assert.AreEqual(2, scripts.Length, "Should have 2 scripts");
 			Assert.IsTrue(
-				scripts[0].StateRef >= 0 && scripts[1].StateRef >= 0,
+				scripts[0].stateRef >= 0 && scripts[1].stateRef >= 0,
 				"Both scripts should be initialized"
 			);
 
 			var events = m_EntityManager.GetBuffer<LuaEvent>(entity);
-			events.Add(new LuaEvent { EventName = "test_broadcast", IntParam = 99 });
+			events.Add(new LuaEvent { eventName = "test_broadcast", intParam = 99 });
 
 			yield return null;
 
@@ -193,14 +192,14 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = scriptName,
-					RequestHash = LuaScriptPathUtility.HashScriptName(scriptName),
-					Fulfilled = false,
+					scriptName = scriptName,
+					requestHash = LuaScriptPathUtility.HashScriptName(scriptName),
+					fulfilled = false,
 				}
 			);
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(position));
 			return entity;
 		}

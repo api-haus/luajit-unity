@@ -1,14 +1,13 @@
 namespace LuaECS.Tests
 {
 	using System.Collections;
-	using LuaECS.Components;
-	using LuaECS.Core;
-	using LuaECS.Systems.Support;
+	using Components;
+	using Core;
+	using Systems.Support;
 	using LuaVM.Core;
 	using NUnit.Framework;
 	using Unity.Entities;
 	using Unity.Transforms;
-	using UnityEngine;
 	using UnityEngine.TestTools;
 
 	/// <summary>
@@ -61,8 +60,8 @@ namespace LuaECS.Tests
 				"Should have LuaScript buffer after fulfillment"
 			);
 			var scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
-			Assert.GreaterOrEqual(scripts[0].StateRef, 0, "StateRef should be assigned");
-			Assert.Greater(scripts[0].EntityIndex, 0, "EntityIndex should be assigned");
+			Assert.GreaterOrEqual(scripts[0].stateRef, 0, "StateRef should be assigned");
+			Assert.Greater(scripts[0].entityIndex, 0, "EntityIndex should be assigned");
 		}
 
 		[UnityTest]
@@ -90,23 +89,23 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = "fruit",
-					RequestHash = LuaScriptPathUtility.HashScriptName("fruit"),
-					Fulfilled = false,
+					scriptName = "fruit",
+					requestHash = LuaScriptPathUtility.HashScriptName("fruit"),
+					fulfilled = false,
 				}
 			);
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = "fruit_eater",
-					RequestHash = LuaScriptPathUtility.HashScriptName("fruit_eater"),
-					Fulfilled = false,
+					scriptName = "fruit_eater",
+					requestHash = LuaScriptPathUtility.HashScriptName("fruit_eater"),
+					fulfilled = false,
 				}
 			);
 
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(0, 0, 0));
 
 			yield return null;
@@ -114,17 +113,17 @@ namespace LuaECS.Tests
 
 			var scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
 			Assert.AreEqual(2, scripts.Length, "Should have 2 scripts");
-			Assert.GreaterOrEqual(scripts[0].StateRef, 0, "First script should be initialized");
-			Assert.GreaterOrEqual(scripts[1].StateRef, 0, "Second script should be initialized");
+			Assert.GreaterOrEqual(scripts[0].stateRef, 0, "First script should be initialized");
+			Assert.GreaterOrEqual(scripts[1].stateRef, 0, "Second script should be initialized");
 
 			Assert.AreEqual(
-				scripts[0].EntityIndex,
-				scripts[1].EntityIndex,
+				scripts[0].entityIndex,
+				scripts[1].entityIndex,
 				"Both scripts should share same entity ID"
 			);
 			Assert.AreNotEqual(
-				scripts[0].StateRef,
-				scripts[1].StateRef,
+				scripts[0].stateRef,
+				scripts[1].stateRef,
 				"Scripts should have different state refs"
 			);
 		}
@@ -173,8 +172,8 @@ namespace LuaECS.Tests
 			Assert.IsTrue(m_EntityManager.HasBuffer<LuaScript>(entity), "Should have LuaScript buffer");
 			var scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
 			Assert.AreEqual(1, scripts.Length, "Should have 1 script");
-			var firstStateRef = scripts[0].StateRef;
-			var firstEntityIndex = scripts[0].EntityIndex;
+			var firstStateRef = scripts[0].stateRef;
+			var firstEntityIndex = scripts[0].entityIndex;
 			Assert.GreaterOrEqual(firstStateRef, 0, "First script should be initialized");
 			Assert.IsTrue(
 				m_VM.ValidateStateRef("fruit", firstEntityIndex, firstStateRef),
@@ -186,9 +185,9 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = "fruit_eater",
-					RequestHash = LuaScriptPathUtility.HashScriptName("fruit_eater"),
-					Fulfilled = false,
+					scriptName = "fruit_eater",
+					requestHash = LuaScriptPathUtility.HashScriptName("fruit_eater"),
+					fulfilled = false,
 				}
 			);
 
@@ -198,7 +197,7 @@ namespace LuaECS.Tests
 			// Verify second script initialized
 			scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
 			Assert.AreEqual(2, scripts.Length, "Should have 2 scripts now");
-			var secondStateRef = scripts[1].StateRef;
+			var secondStateRef = scripts[1].stateRef;
 			Assert.GreaterOrEqual(secondStateRef, 0, "Second script should be initialized");
 			Assert.IsTrue(
 				m_VM.ValidateStateRef("fruit_eater", firstEntityIndex, secondStateRef),
@@ -210,9 +209,9 @@ namespace LuaECS.Tests
 			Assert.IsTrue(disabled, "Should successfully disable first script");
 
 			scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
-			Assert.IsTrue(scripts[0].Disabled, "First script should be marked disabled");
-			Assert.AreEqual(-1, scripts[0].StateRef, "Disabled script should have StateRef = -1");
-			Assert.IsFalse(scripts[1].Disabled, "Second script should not be disabled");
+			Assert.IsTrue(scripts[0].disabled, "First script should be marked disabled");
+			Assert.AreEqual(-1, scripts[0].stateRef, "Disabled script should have StateRef = -1");
+			Assert.IsFalse(scripts[1].disabled, "Second script should not be disabled");
 			Assert.IsFalse(
 				m_VM.ValidateStateRef("fruit", firstEntityIndex, firstStateRef),
 				"First script state should be released from VM"
@@ -257,14 +256,14 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = "fruit",
-					RequestHash = fruitHash,
-					Fulfilled = false,
+					scriptName = "fruit",
+					requestHash = fruitHash,
+					fulfilled = false,
 				}
 			);
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(0, 0, 0));
 
 			yield return null;
@@ -272,16 +271,16 @@ namespace LuaECS.Tests
 
 			var scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
 			Assert.AreEqual(1, scripts.Length, "Should have 1 script");
-			Assert.GreaterOrEqual(scripts[0].StateRef, 0, "Script should be initialized");
-			Assert.AreEqual(fruitHash, scripts[0].RequestHash, "Script should have matching hash");
+			Assert.GreaterOrEqual(scripts[0].stateRef, 0, "Script should be initialized");
+			Assert.AreEqual(fruitHash, scripts[0].requestHash, "Script should have matching hash");
 
 			// Disable by hash
 			var disabled = m_FulfillmentSystem.DisableScriptByHash(entity, fruitHash);
 			Assert.IsTrue(disabled, "Should successfully disable script by hash");
 
 			scripts = m_EntityManager.GetBuffer<LuaScript>(entity);
-			Assert.IsTrue(scripts[0].Disabled, "Script should be marked disabled");
-			Assert.AreEqual(-1, scripts[0].StateRef, "Disabled script should have StateRef = -1");
+			Assert.IsTrue(scripts[0].disabled, "Script should be marked disabled");
+			Assert.AreEqual(-1, scripts[0].stateRef, "Disabled script should have StateRef = -1");
 		}
 
 		Entity CreateScriptedEntity(string scriptName)
@@ -291,14 +290,14 @@ namespace LuaECS.Tests
 			requests.Add(
 				new LuaScriptRequest
 				{
-					ScriptName = scriptName,
-					RequestHash = LuaScriptPathUtility.HashScriptName(scriptName),
-					Fulfilled = false,
+					scriptName = scriptName,
+					requestHash = LuaScriptPathUtility.HashScriptName(scriptName),
+					fulfilled = false,
 				}
 			);
 			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
-			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
+			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(0, 0, 0));
 			return entity;
 		}

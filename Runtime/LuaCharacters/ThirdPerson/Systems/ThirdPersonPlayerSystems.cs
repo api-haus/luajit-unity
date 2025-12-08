@@ -2,8 +2,9 @@
 using Unity.NetCode;
 #endif
 
-namespace LuaCharacters.ThirdPerson
+namespace LuaCharacters.ThirdPerson.Systems
 {
+	using Components;
 	using Unity.Burst;
 	using Unity.CharacterController;
 	using Unity.Entities;
@@ -17,8 +18,8 @@ namespace LuaCharacters.ThirdPerson
 	[UpdateInGroup(typeof(InitializationSystemGroup))]
 	public partial class ThirdPersonPlayerInputsSystem : SystemBase
 	{
-		private InputAction moveAction;
-		private InputAction jumpAction;
+		private InputAction m_MoveAction;
+		private InputAction m_JumpAction;
 
 		protected override void OnCreate()
 		{
@@ -36,19 +37,19 @@ namespace LuaCharacters.ThirdPerson
 			// Get the InputActionAsset and find actions by convention names
 			var inputActions = SystemAPI.ManagedAPI.GetSingleton<ThirdPersonPlayerInputActions>();
 
-			if (inputActions.InputActionAsset != null)
+			if (inputActions.inputActionAsset != null)
 			{
-				moveAction = inputActions.InputActionAsset.FindAction("Move");
-				jumpAction = inputActions.InputActionAsset.FindAction("Jump");
+				m_MoveAction = inputActions.inputActionAsset.FindAction("Move");
+				m_JumpAction = inputActions.inputActionAsset.FindAction("Jump");
 
 				// Enable the actions
-				if (moveAction != null)
+				if (m_MoveAction != null)
 				{
-					moveAction.Enable();
+					m_MoveAction.Enable();
 				}
-				if (jumpAction != null)
+				if (m_JumpAction != null)
 				{
-					jumpAction.Enable();
+					m_JumpAction.Enable();
 				}
 			}
 		}
@@ -56,15 +57,15 @@ namespace LuaCharacters.ThirdPerson
 		protected override void OnStopRunning()
 		{
 			// Disable actions when the system stops
-			if (moveAction != null)
+			if (m_MoveAction != null)
 			{
-				moveAction.Disable();
-				moveAction = null;
+				m_MoveAction.Disable();
+				m_MoveAction = null;
 			}
-			if (jumpAction != null)
+			if (m_JumpAction != null)
 			{
-				jumpAction.Disable();
-				jumpAction = null;
+				m_JumpAction.Disable();
+				m_JumpAction = null;
 			}
 		}
 
@@ -75,9 +76,9 @@ namespace LuaCharacters.ThirdPerson
 			foreach (var playerInputs in SystemAPI.Query<RefRW<ThirdPersonPlayerInputs>>())
 			{
 				// Read move input from the Move action
-				if (moveAction != null && moveAction.enabled)
+				if (m_MoveAction != null && m_MoveAction.enabled)
 				{
-					var moveValue = moveAction.ReadValue<Vector2>();
+					var moveValue = m_MoveAction.ReadValue<Vector2>();
 					playerInputs.ValueRW.moveInput = new float2(moveValue.x, moveValue.y);
 				}
 				else
@@ -86,9 +87,9 @@ namespace LuaCharacters.ThirdPerson
 				}
 
 				// Read jump input from the Jump action
-				if (jumpAction != null && jumpAction.enabled)
+				if (m_JumpAction != null && m_JumpAction.enabled)
 				{
-					if (jumpAction.WasPressedThisFrame())
+					if (m_JumpAction.WasPressedThisFrame())
 					{
 						playerInputs.ValueRW.jumpPressed.Set(fixedTick);
 					}

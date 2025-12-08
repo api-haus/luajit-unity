@@ -1,10 +1,11 @@
 namespace LuaECS.Core
 {
-	using LuaECS.Components;
+	using Components;
 	using Unity.Burst;
 	using Unity.Collections;
 	using Unity.Collections.LowLevel.Unsafe;
 	using Unity.Entities;
+	using Unity.Logging;
 	using Unity.Mathematics;
 	using Unity.Transforms;
 
@@ -15,13 +16,13 @@ namespace LuaECS.Core
 	/// </summary>
 	public struct LuaEntityRegistryData
 	{
-		public UnsafeHashMap<int, Entity> IdToEntity;
-		public UnsafeHashMap<Entity, int> EntityToId;
-		public UnsafeHashMap<int, Entity> PendingCreations;
-		public UnsafeHashSet<int> PendingDestructions;
-		public NativeHashMap<Entity, int> PendingEntityIds;
-		public int NextId;
-		public bool IsCreated;
+		public UnsafeHashMap<int, Entity> idToEntity;
+		public UnsafeHashMap<Entity, int> entityToId;
+		public UnsafeHashMap<int, Entity> pendingCreations;
+		public UnsafeHashSet<int> pendingDestructions;
+		public NativeHashMap<Entity, int> pendingEntityIds;
+		public int nextId;
+		public bool isCreated;
 	}
 
 	/// <summary>
@@ -32,55 +33,55 @@ namespace LuaECS.Core
 	{
 		struct RegistryMarker { }
 
-		static readonly SharedStatic<LuaEntityRegistryData> s_Registry =
+		static readonly SharedStatic<LuaEntityRegistryData> s_registry =
 			SharedStatic<LuaEntityRegistryData>.GetOrCreate<RegistryMarker, LuaEntityRegistryData>();
 
-		public static ref LuaEntityRegistryData Data => ref s_Registry.Data;
+		public static ref LuaEntityRegistryData Data => ref s_registry.Data;
 
-		public static bool IsCreated => s_Registry.Data.IsCreated;
+		public static bool IsCreated => s_registry.Data.isCreated;
 
-		public static int Count => s_Registry.Data.IsCreated ? s_Registry.Data.IdToEntity.Count : 0;
+		public static int Count => s_registry.Data.isCreated ? s_registry.Data.idToEntity.Count : 0;
 
 		public static UnsafeHashMap<int, Entity> EntityIdMap =>
-			s_Registry.Data.IsCreated ? s_Registry.Data.IdToEntity : default;
+			s_registry.Data.isCreated ? s_registry.Data.idToEntity : default;
 
 		public static void Initialize(int initialCapacity = 256)
 		{
-			if (s_Registry.Data.IsCreated)
+			if (s_registry.Data.isCreated)
 				return;
 
-			s_Registry.Data = new LuaEntityRegistryData
+			s_registry.Data = new LuaEntityRegistryData
 			{
-				IdToEntity = new UnsafeHashMap<int, Entity>(initialCapacity, Allocator.Persistent),
-				EntityToId = new UnsafeHashMap<Entity, int>(initialCapacity, Allocator.Persistent),
-				PendingCreations = new UnsafeHashMap<int, Entity>(64, Allocator.Persistent),
-				PendingDestructions = new UnsafeHashSet<int>(64, Allocator.Persistent),
-				PendingEntityIds = new NativeHashMap<Entity, int>(64, Allocator.Persistent),
-				NextId = 1,
-				IsCreated = true,
+				idToEntity = new UnsafeHashMap<int, Entity>(initialCapacity, Allocator.Persistent),
+				entityToId = new UnsafeHashMap<Entity, int>(initialCapacity, Allocator.Persistent),
+				pendingCreations = new UnsafeHashMap<int, Entity>(64, Allocator.Persistent),
+				pendingDestructions = new UnsafeHashSet<int>(64, Allocator.Persistent),
+				pendingEntityIds = new NativeHashMap<Entity, int>(64, Allocator.Persistent),
+				nextId = 1,
+				isCreated = true,
 			};
 		}
 
 		public static void Dispose()
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return;
 
-			if (data.IdToEntity.IsCreated)
-				data.IdToEntity.Dispose();
+			if (data.idToEntity.IsCreated)
+				data.idToEntity.Dispose();
 
-			if (data.EntityToId.IsCreated)
-				data.EntityToId.Dispose();
+			if (data.entityToId.IsCreated)
+				data.entityToId.Dispose();
 
-			if (data.PendingCreations.IsCreated)
-				data.PendingCreations.Dispose();
+			if (data.pendingCreations.IsCreated)
+				data.pendingCreations.Dispose();
 
-			if (data.PendingDestructions.IsCreated)
-				data.PendingDestructions.Dispose();
+			if (data.pendingDestructions.IsCreated)
+				data.pendingDestructions.Dispose();
 
-			if (data.PendingEntityIds.IsCreated)
-				data.PendingEntityIds.Dispose();
+			if (data.pendingEntityIds.IsCreated)
+				data.pendingEntityIds.Dispose();
 
 			data = default;
 		}
@@ -91,26 +92,26 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void Clear()
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return;
 
-			if (data.IdToEntity.IsCreated)
-				data.IdToEntity.Clear();
+			if (data.idToEntity.IsCreated)
+				data.idToEntity.Clear();
 
-			if (data.EntityToId.IsCreated)
-				data.EntityToId.Clear();
+			if (data.entityToId.IsCreated)
+				data.entityToId.Clear();
 
-			if (data.PendingCreations.IsCreated)
-				data.PendingCreations.Clear();
+			if (data.pendingCreations.IsCreated)
+				data.pendingCreations.Clear();
 
-			if (data.PendingDestructions.IsCreated)
-				data.PendingDestructions.Clear();
+			if (data.pendingDestructions.IsCreated)
+				data.pendingDestructions.Clear();
 
-			if (data.PendingEntityIds.IsCreated)
-				data.PendingEntityIds.Clear();
+			if (data.pendingEntityIds.IsCreated)
+				data.pendingEntityIds.Clear();
 
-			data.NextId = 1;
+			data.nextId = 1;
 		}
 
 		/// <summary>
@@ -119,14 +120,14 @@ namespace LuaECS.Core
 		/// </summary>
 		public static Entity GetEntityFromId(int entityId)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated || entityId <= 0)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated || entityId <= 0)
 				return Entity.Null;
 
-			if (data.PendingCreations.TryGetValue(entityId, out var pending))
+			if (data.pendingCreations.TryGetValue(entityId, out var pending))
 				return pending;
 
-			return data.IdToEntity.TryGetValue(entityId, out var entity) ? entity : Entity.Null;
+			return data.idToEntity.TryGetValue(entityId, out var entity) ? entity : Entity.Null;
 		}
 
 		/// <summary>
@@ -135,11 +136,11 @@ namespace LuaECS.Core
 		/// </summary>
 		public static int GetIdFromEntity(Entity entity)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated || entity == Entity.Null)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated || entity == Entity.Null)
 				return -1;
 
-			return data.EntityToId.TryGetValue(entity, out var id) ? id : -1;
+			return data.entityToId.TryGetValue(entity, out var id) ? id : -1;
 		}
 
 		/// <summary>
@@ -147,11 +148,11 @@ namespace LuaECS.Core
 		/// </summary>
 		public static bool Contains(int entityId)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return false;
 
-			return data.PendingCreations.ContainsKey(entityId) || data.IdToEntity.ContainsKey(entityId);
+			return data.pendingCreations.ContainsKey(entityId) || data.idToEntity.ContainsKey(entityId);
 		}
 
 		/// <summary>
@@ -159,11 +160,11 @@ namespace LuaECS.Core
 		/// </summary>
 		public static bool Contains(Entity entity)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return false;
 
-			return data.EntityToId.ContainsKey(entity);
+			return data.entityToId.ContainsKey(entity);
 		}
 
 		/// <summary>
@@ -171,8 +172,8 @@ namespace LuaECS.Core
 		/// </summary>
 		public static bool IsPending(int entityId)
 		{
-			ref var data = ref s_Registry.Data;
-			return data.IsCreated && data.PendingCreations.ContainsKey(entityId);
+			ref var data = ref s_registry.Data;
+			return data.isCreated && data.pendingCreations.ContainsKey(entityId);
 		}
 
 		/// <summary>
@@ -180,8 +181,8 @@ namespace LuaECS.Core
 		/// </summary>
 		public static bool IsMarkedForDestruction(int entityId)
 		{
-			ref var data = ref s_Registry.Data;
-			return data.IsCreated && data.PendingDestructions.Contains(entityId);
+			ref var data = ref s_registry.Data;
+			return data.isCreated && data.pendingDestructions.Contains(entityId);
 		}
 
 		/// <summary>
@@ -189,11 +190,11 @@ namespace LuaECS.Core
 		/// </summary>
 		public static int AllocateId()
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return -1;
 
-			return data.NextId++;
+			return data.nextId++;
 		}
 
 		/// <summary>
@@ -201,12 +202,12 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void EnsureNextId(int minNextId)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return;
 
-			if (minNextId > data.NextId)
-				data.NextId = minNextId;
+			if (minNextId > data.nextId)
+				data.nextId = minNextId;
 		}
 
 		/// <summary>
@@ -214,11 +215,11 @@ namespace LuaECS.Core
 		/// </summary>
 		public static int Create(float3 position, EntityCommandBuffer ecb)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return -1;
 
-			var id = data.NextId++;
+			var id = data.nextId++;
 			CreateWithId(id, position, ecb);
 			return id;
 		}
@@ -228,21 +229,21 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void CreateWithId(int id, float3 position, EntityCommandBuffer ecb)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return;
 
-			if (id >= data.NextId)
-				data.NextId = id + 1;
+			if (id >= data.nextId)
+				data.nextId = id + 1;
 
 			var entity = ecb.CreateEntity();
 			ecb.AddComponent(entity, LocalTransform.FromPosition(position));
-			ecb.AddComponent(entity, new LuaEntityId { Value = id });
+			ecb.AddComponent(entity, new LuaEntityId { value = id });
 			ecb.AddBuffer<LuaScriptRequest>(entity);
 			ecb.AddBuffer<LuaEvent>(entity);
 			ecb.AddBuffer<LuaCommand>(entity);
 
-			data.PendingCreations[id] = entity;
+			data.pendingCreations[id] = entity;
 		}
 
 		/// <summary>
@@ -250,19 +251,19 @@ namespace LuaECS.Core
 		/// </summary>
 		public static int Register(Entity entity, EntityCommandBuffer ecb)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return -1;
 
-			if (data.EntityToId.TryGetValue(entity, out var existingId))
+			if (data.entityToId.TryGetValue(entity, out var existingId))
 				return existingId;
 
-			var id = data.NextId++;
-			ecb.AddComponent(entity, new LuaEntityId { Value = id });
+			var id = data.nextId++;
+			ecb.AddComponent(entity, new LuaEntityId { value = id });
 
-			data.IdToEntity[id] = entity;
-			data.EntityToId[entity] = id;
-			data.PendingCreations[id] = entity;
+			data.idToEntity[id] = entity;
+			data.entityToId[entity] = id;
+			data.pendingCreations[id] = entity;
 
 			return id;
 		}
@@ -272,19 +273,19 @@ namespace LuaECS.Core
 		/// </summary>
 		public static int RegisterBaked(Entity entity, EntityCommandBuffer ecb)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return -1;
 
-			if (data.EntityToId.TryGetValue(entity, out var existingId))
+			if (data.entityToId.TryGetValue(entity, out var existingId))
 				return existingId;
 
-			var id = data.NextId++;
-			ecb.SetComponent(entity, new LuaEntityId { Value = id });
+			var id = data.nextId++;
+			ecb.SetComponent(entity, new LuaEntityId { value = id });
 
-			data.IdToEntity[id] = entity;
-			data.EntityToId[entity] = id;
-			data.PendingCreations[id] = entity;
+			data.idToEntity[id] = entity;
+			data.entityToId[entity] = id;
+			data.pendingCreations[id] = entity;
 
 			return id;
 		}
@@ -294,25 +295,25 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void RegisterImmediate(Entity entity, int id, EntityManager entityManager)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return;
 
-			if (id >= data.NextId)
-				data.NextId = id + 1;
+			if (id >= data.nextId)
+				data.nextId = id + 1;
 
-			data.IdToEntity[id] = entity;
-			data.EntityToId[entity] = id;
+			data.idToEntity[id] = entity;
+			data.entityToId[entity] = id;
 
 			if (!entityManager.HasComponent<LuaEntityId>(entity))
 			{
-				entityManager.AddComponentData(entity, new LuaEntityId { Value = id });
+				entityManager.AddComponentData(entity, new LuaEntityId { value = id });
 			}
 			else
 			{
 				var luaId = entityManager.GetComponentData<LuaEntityId>(entity);
-				if (luaId.Value != id)
-					entityManager.SetComponentData(entity, new LuaEntityId { Value = id });
+				if (luaId.value != id)
+					entityManager.SetComponentData(entity, new LuaEntityId { value = id });
 			}
 		}
 
@@ -321,22 +322,22 @@ namespace LuaECS.Core
 		/// </summary>
 		public static bool Destroy(int entityId, EntityCommandBuffer ecb)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return false;
 
-			if (data.PendingCreations.TryGetValue(entityId, out var pendingEntity))
+			if (data.pendingCreations.TryGetValue(entityId, out var pendingEntity))
 			{
 				ecb.DestroyEntity(pendingEntity);
-				data.PendingCreations.Remove(entityId);
+				data.pendingCreations.Remove(entityId);
 				return true;
 			}
 
-			if (!data.IdToEntity.TryGetValue(entityId, out var entity))
+			if (!data.idToEntity.TryGetValue(entityId, out var entity))
 				return false;
 
 			ecb.RemoveComponent<LuaEntityId>(entity);
-			data.PendingDestructions.Add(entityId);
+			data.pendingDestructions.Add(entityId);
 			return true;
 		}
 
@@ -345,11 +346,11 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void CommitPendingCreations(EntityManager entityManager)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated || data.PendingCreations.Count == 0)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated || data.pendingCreations.Count == 0)
 				return;
 
-			var pendingIds = data.PendingCreations.GetKeyArray(Allocator.Temp);
+			var pendingIds = data.pendingCreations.GetKeyArray(Allocator.Temp);
 			var pendingSet = new NativeHashSet<int>(pendingIds.Length, Allocator.Temp);
 			foreach (var id in pendingIds)
 				pendingSet.Add(id);
@@ -360,11 +361,11 @@ namespace LuaECS.Core
 
 			for (var i = 0; i < entities.Length; i++)
 			{
-				var id = ids[i].Value;
-				if (pendingSet.Contains(id) && !data.IdToEntity.ContainsKey(id))
+				var id = ids[i].value;
+				if (pendingSet.Contains(id) && !data.idToEntity.ContainsKey(id))
 				{
-					data.IdToEntity[id] = entities[i];
-					data.EntityToId[entities[i]] = id;
+					data.idToEntity[id] = entities[i];
+					data.entityToId[entities[i]] = id;
 				}
 			}
 
@@ -372,7 +373,7 @@ namespace LuaECS.Core
 			ids.Dispose();
 			pendingIds.Dispose();
 			pendingSet.Dispose();
-			data.PendingCreations.Clear();
+			data.pendingCreations.Clear();
 		}
 
 		/// <summary>
@@ -380,20 +381,20 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void CommitPendingDestructions()
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return;
 
-			foreach (var id in data.PendingDestructions)
+			foreach (var id in data.pendingDestructions)
 			{
-				if (data.IdToEntity.TryGetValue(id, out var entity))
+				if (data.idToEntity.TryGetValue(id, out var entity))
 				{
-					data.EntityToId.Remove(entity);
-					data.IdToEntity.Remove(id);
+					data.entityToId.Remove(entity);
+					data.idToEntity.Remove(id);
 				}
 			}
 
-			data.PendingDestructions.Clear();
+			data.pendingDestructions.Clear();
 		}
 
 		/// <summary>
@@ -401,13 +402,13 @@ namespace LuaECS.Core
 		/// </summary>
 		public static void SyncWithWorld(EntityManager entityManager)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return;
 
 			var toRemove = new NativeList<int>(Allocator.Temp);
 
-			foreach (var kvp in data.IdToEntity)
+			foreach (var kvp in data.idToEntity)
 			{
 				if (!IsEntityValid(entityManager, kvp.Value, kvp.Key))
 					toRemove.Add(kvp.Key);
@@ -415,10 +416,10 @@ namespace LuaECS.Core
 
 			foreach (var id in toRemove)
 			{
-				if (data.IdToEntity.TryGetValue(id, out var entity))
+				if (data.idToEntity.TryGetValue(id, out var entity))
 				{
-					data.EntityToId.Remove(entity);
-					data.IdToEntity.Remove(id);
+					data.entityToId.Remove(entity);
+					data.idToEntity.Remove(id);
 				}
 			}
 
@@ -430,9 +431,9 @@ namespace LuaECS.Core
 		/// </summary>
 		public static NativeArray<int> GetAllIds(Allocator allocator)
 		{
-			ref var data = ref s_Registry.Data;
-			return data.IsCreated
-				? data.IdToEntity.GetKeyArray(allocator)
+			ref var data = ref s_registry.Data;
+			return data.isCreated
+				? data.idToEntity.GetKeyArray(allocator)
 				: new NativeArray<int>(0, allocator);
 		}
 
@@ -441,9 +442,9 @@ namespace LuaECS.Core
 		/// </summary>
 		public static NativeArray<Entity> GetAllEntities(Allocator allocator)
 		{
-			ref var data = ref s_Registry.Data;
-			return data.IsCreated
-				? data.IdToEntity.GetValueArray(allocator)
+			ref var data = ref s_registry.Data;
+			return data.isCreated
+				? data.idToEntity.GetValueArray(allocator)
 				: new NativeArray<Entity>(0, allocator);
 		}
 
@@ -458,7 +459,7 @@ namespace LuaECS.Core
 			if (!entityManager.HasComponent<LuaEntityId>(entity))
 				return false;
 
-			var actualId = entityManager.GetComponentData<LuaEntityId>(entity).Value;
+			var actualId = entityManager.GetComponentData<LuaEntityId>(entity).value;
 
 			if (actualId == 0)
 				return false;
@@ -475,9 +476,9 @@ namespace LuaECS.Core
 			CommitPendingCreations(entityManager);
 			CommitPendingDestructions();
 
-			ref var data = ref s_Registry.Data;
-			if (data.IsCreated && data.PendingEntityIds.IsCreated)
-				data.PendingEntityIds.Clear();
+			ref var data = ref s_registry.Data;
+			if (data.isCreated && data.pendingEntityIds.IsCreated)
+				data.pendingEntityIds.Clear();
 		}
 
 		/// <summary>
@@ -491,30 +492,30 @@ namespace LuaECS.Core
 			EntityManager entityManager
 		)
 		{
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return -1;
 
 			var existingId = GetIdFromEntity(entity);
 			if (existingId > 0)
 				return existingId;
 
-			if (data.PendingEntityIds.TryGetValue(entity, out var pendingId))
+			if (data.pendingEntityIds.TryGetValue(entity, out var pendingId))
 				return pendingId;
 
 			if (entityManager.HasComponent<LuaEntityId>(entity))
 			{
 				var luaId = entityManager.GetComponentData<LuaEntityId>(entity);
-				if (luaId.Value == 0)
+				if (luaId.value == 0)
 				{
 					var id = RegisterBaked(entity, ecb);
-					data.PendingEntityIds[entity] = id;
+					data.pendingEntityIds[entity] = id;
 					return id;
 				}
 			}
 
 			var newId = Register(entity, ecb);
-			data.PendingEntityIds[entity] = newId;
+			data.pendingEntityIds[entity] = newId;
 			return newId;
 		}
 
@@ -526,15 +527,15 @@ namespace LuaECS.Core
 			if (entity == Entity.Null || !entityManager.Exists(entity))
 				return -1;
 
-			ref var data = ref s_Registry.Data;
-			if (!data.IsCreated)
+			ref var data = ref s_registry.Data;
+			if (!data.isCreated)
 				return -1;
 
 			var id = GetIdFromEntity(entity);
 			if (id > 0)
 				return id;
 
-			if (data.PendingEntityIds.TryGetValue(entity, out var pendingId))
+			if (data.pendingEntityIds.TryGetValue(entity, out var pendingId))
 				return pendingId;
 
 			return -1;
@@ -554,18 +555,15 @@ namespace LuaECS.Core
 			var entity = GetEntityFromId(entityId);
 			if (entity == Entity.Null)
 			{
-				Unity.Logging.Log.Warning(
-					"[LuaEntityRegistry] AddScriptDeferred: entity {0} not found",
-					entityId
-				);
+				Log.Warning("[LuaEntityRegistry] AddScriptDeferred: entity {0} not found", entityId);
 				return false;
 			}
 
 			var request = new LuaScriptRequest
 			{
-				ScriptName = scriptName,
-				RequestHash = LuaScriptPathUtility.HashScriptName(scriptName),
-				Fulfilled = false,
+				scriptName = scriptName,
+				requestHash = LuaScriptPathUtility.HashScriptName(scriptName),
+				fulfilled = false,
 			};
 
 			if (IsPending(entityId))

@@ -1,4 +1,4 @@
-namespace LuaCharacters.ThirdPerson
+namespace LuaCharacters.ThirdPerson.Authoring
 {
 	using System;
 	using Unity.Entities;
@@ -26,7 +26,7 @@ namespace LuaCharacters.ThirdPerson
 	{
 		public float gravityMultiplier = 1f;
 
-		class Baker : Unity.Entities.Baker<CustomGravityAuthoring>
+		class Baker : Baker<CustomGravityAuthoring>
 		{
 			public override void Bake(CustomGravityAuthoring authoring)
 			{

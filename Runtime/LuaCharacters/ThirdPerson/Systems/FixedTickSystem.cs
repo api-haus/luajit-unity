@@ -1,4 +1,4 @@
-namespace LuaCharacters.ThirdPerson
+namespace LuaCharacters.ThirdPerson.Systems
 {
 	using Unity.Burst;
 	using Unity.Entities;
