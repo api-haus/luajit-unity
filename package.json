@@ -1,7 +1,7 @@
 {
 	"name": "im.pala.unity.luagame",
 	"version": "0.1.0",
-	"displayName": "LuaGame",
+	"displayName": "[Pala] LuaGame",
 	"description": "Lua scripting framework for Unity with ECS integration. Includes LuaJIT bindings, Burst-compatible VM management, and Unity ECS bridge.",
 	"unity": "2022.3",
 	"dependencies": {

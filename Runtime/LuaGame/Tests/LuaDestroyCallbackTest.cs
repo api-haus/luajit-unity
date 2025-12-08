@@ -18,7 +18,6 @@ namespace LuaGame.Tests
 	{
 		World m_World;
 		EntityManager m_EntityManager;
-		LuaEntityCollection m_Collection;
 		LuaScriptCleanupSystem m_CleanupSystem;
 
 		[UnitySetUp]
@@ -26,7 +25,13 @@ namespace LuaGame.Tests
 		{
 			m_World = World.DefaultGameObjectInjectionWorld;
 			m_EntityManager = m_World.EntityManager;
-			m_Collection = new LuaEntityCollection(m_EntityManager);
+
+			// Initialize registry for each test
+			if (!LuaEntityRegistry.IsCreated)
+				LuaEntityRegistry.Initialize();
+			else
+				LuaEntityRegistry.Clear();
+
 			LuaVMManager.GetOrCreate();
 			m_CleanupSystem = m_World.GetOrCreateSystemManaged<LuaScriptCleanupSystem>();
 			yield return null;
@@ -44,8 +49,7 @@ namespace LuaGame.Tests
 			var idQuery = m_EntityManager.CreateEntityQuery(typeof(LuaEntityId));
 			m_EntityManager.DestroyEntity(idQuery);
 
-			m_Collection?.Dispose();
-			m_Collection = null;
+			LuaEntityRegistry.Clear();
 			yield return null;
 		}
 
@@ -64,7 +68,7 @@ namespace LuaGame.Tests
 			);
 
 			using var ecb = new EntityCommandBuffer(Unity.Collections.Allocator.TempJob);
-			m_Collection.Destroy(entityId, ecb);
+			LuaEntityRegistry.Destroy(entityId, ecb);
 			ecb.Playback(m_EntityManager);
 
 			Assert.IsFalse(
@@ -87,7 +91,7 @@ namespace LuaGame.Tests
 			yield return null;
 
 			using var ecb = new EntityCommandBuffer(Unity.Collections.Allocator.TempJob);
-			m_Collection.Destroy(entityId, ecb);
+			LuaEntityRegistry.Destroy(entityId, ecb);
 			ecb.Playback(m_EntityManager);
 
 			Assert.IsTrue(m_EntityManager.Exists(entity), "Entity should exist after ID removal");
@@ -165,7 +169,8 @@ namespace LuaGame.Tests
 			m_EntityManager.AddComponentData(entity, new LuaEntityId { Value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(0, 0, 0));
 
-			m_Collection.RegisterImmediate(entity, m_Collection.Count + 1);
+			var id = LuaEntityRegistry.Count + 1;
+			LuaEntityRegistry.RegisterImmediate(entity, id, m_EntityManager);
 
 			return entity;
 		}
