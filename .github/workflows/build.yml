@@ -61,7 +61,7 @@ jobs:
           path: lua51.so
 
   build-macos-x64:
-    runs-on: macos-13
+    runs-on: macos-14
     env:
       MACOSX_DEPLOYMENT_TARGET: "11.0"
     steps:
