@@ -1,0 +1,32 @@
+{
+	"name": "LuaGame.Tests",
+	"rootNamespace": "LuaGame.Tests",
+	"references": [
+		"LuaJIT",
+		"LuaVM",
+		"LuaECS",
+		"LuaGame",
+		"Unity.Entities",
+		"Unity.Entities.Hybrid",
+		"Unity.Mathematics",
+		"Unity.Collections",
+		"Unity.Transforms",
+		"Unity.Logging",
+		"Unity.Burst",
+		"UnityEngine.TestRunner",
+		"UnityEditor.TestRunner"
+	],
+	"includePlatforms": [],
+	"excludePlatforms": [],
+	"allowUnsafeCode": true,
+	"overrideReferences": true,
+	"precompiledReferences": [
+		"nunit.framework.dll"
+	],
+	"autoReferenced": false,
+	"defineConstraints": [
+		"UNITY_INCLUDE_TESTS"
+	],
+	"versionDefines": [],
+	"noEngineReferences": false
+}

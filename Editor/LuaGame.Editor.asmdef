@@ -1,0 +1,26 @@
+{
+	"name": "LuaGame.Editor",
+	"rootNamespace": "LuaGame.Editor",
+	"references": [
+		"LuaJIT",
+		"LuaVM",
+		"LuaECS",
+		"Unity.Entities",
+		"Unity.Entities.Hybrid",
+		"Unity.Mathematics",
+		"Unity.Collections",
+		"Unity.Logging",
+		"Unity.Burst"
+	],
+	"includePlatforms": [
+		"Editor"
+	],
+	"excludePlatforms": [],
+	"allowUnsafeCode": true,
+	"overrideReferences": false,
+	"precompiledReferences": [],
+	"autoReferenced": true,
+	"defineConstraints": [],
+	"versionDefines": [],
+	"noEngineReferences": false
+}

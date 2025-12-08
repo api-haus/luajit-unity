@@ -1,0 +1,24 @@
+{
+	"name": "im.pala.unity.luagame",
+	"version": "0.1.0",
+	"displayName": "LuaGame",
+	"description": "Lua scripting framework for Unity with ECS integration. Includes LuaJIT bindings, Burst-compatible VM management, and Unity ECS bridge.",
+	"unity": "2022.3",
+	"dependencies": {
+		"com.unity.entities": "1.0.0",
+		"com.unity.mathematics": "1.0.0",
+		"com.unity.collections": "2.0.0",
+		"com.unity.burst": "1.8.0",
+		"com.unity.logging": "1.3.0"
+	},
+	"keywords": [
+		"lua",
+		"luajit",
+		"scripting",
+		"ecs",
+		"dots"
+	],
+	"author": {
+		"name": "Pala"
+	}
+}

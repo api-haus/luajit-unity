@@ -1,0 +1,26 @@
+{
+	"name": "LuaVM.Tests",
+	"rootNamespace": "LuaVM.Tests",
+	"references": [
+		"LuaJIT",
+		"LuaVM",
+		"Unity.Mathematics",
+		"Unity.Collections",
+		"Unity.Burst",
+		"UnityEngine.TestRunner",
+		"UnityEditor.TestRunner"
+	],
+	"includePlatforms": [],
+	"excludePlatforms": [],
+	"allowUnsafeCode": true,
+	"overrideReferences": true,
+	"precompiledReferences": [
+		"nunit.framework.dll"
+	],
+	"autoReferenced": false,
+	"defineConstraints": [
+		"UNITY_INCLUDE_TESTS"
+	],
+	"versionDefines": [],
+	"noEngineReferences": false
+}

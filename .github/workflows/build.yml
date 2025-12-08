@@ -1,0 +1,330 @@
+name: Build LuaJIT
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build.yml"
+
+env:
+  LUAJIT_REPO: https://github.com/LuaJIT/LuaJIT.git
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone LuaJIT
+        run: git clone --depth 1 ${{ env.LUAJIT_REPO }} luajit
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build LuaJIT
+        shell: cmd
+        run: |
+          cd luajit\src
+          msvcbuild.bat
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-x64
+          path: luajit/src/lua51.dll
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone LuaJIT
+        run: git clone --depth 1 ${{ env.LUAJIT_REPO }} luajit
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+
+      - name: Build LuaJIT
+        run: |
+          cd luajit
+          make -j$(nproc) BUILDMODE=dynamic
+
+      - name: Rename library
+        run: cp luajit/src/libluajit.so lua51.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: lua51.so
+
+  build-macos-x64:
+    runs-on: macos-13
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone LuaJIT
+        run: git clone --depth 1 ${{ env.LUAJIT_REPO }} luajit
+
+      - name: Build LuaJIT for x64
+        run: |
+          cd luajit
+          make -j$(sysctl -n hw.ncpu) BUILDMODE=dynamic TARGET_FLAGS="-arch x86_64"
+
+      - name: Rename library
+        run: cp luajit/src/libluajit.so lua51.dylib
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: osx-x64
+          path: lua51.dylib
+
+  build-macos-arm64:
+    runs-on: macos-14
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone LuaJIT
+        run: git clone --depth 1 ${{ env.LUAJIT_REPO }} luajit
+
+      - name: Build LuaJIT for arm64
+        run: |
+          cd luajit
+          make -j$(sysctl -n hw.ncpu) BUILDMODE=dynamic TARGET_FLAGS="-arch arm64"
+
+      - name: Rename library
+        run: cp luajit/src/libluajit.so lua51.dylib
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: osx-arm64
+          path: lua51.dylib
+
+  build-ios:
+    runs-on: macos-14
+    env:
+      IPHONEOS_DEPLOYMENT_TARGET: "12.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone LuaJIT
+        run: git clone --depth 1 ${{ env.LUAJIT_REPO }} luajit
+
+      - name: Build LuaJIT for iOS arm64
+        run: |
+          cd luajit/src
+
+          # iOS SDK paths and tools
+          ISDKP=$(xcrun --sdk iphoneos --show-sdk-path)
+          ICC=$(xcrun --sdk iphoneos --find clang)
+          IAR=$(xcrun --sdk iphoneos --find ar)
+          ICMN="-arch arm64 -isysroot $ISDKP -miphoneos-version-min=12.0"
+
+          # Step 1: Build host tools natively (unset iOS env vars)
+          unset IPHONEOS_DEPLOYMENT_TARGET
+          export MACOSX_DEPLOYMENT_TARGET=11.0
+          make HOST_CC=clang XCFLAGS="-DLUAJIT_DISABLE_JIT" TARGET_SYS=iOS host/minilua host/buildvm
+
+          # Step 2: Build for iOS (JIT disabled)
+          make -j$(sysctl -n hw.ncpu) \
+               XCFLAGS="-DLUAJIT_DISABLE_JIT" \
+               STATIC_CC="$ICC" \
+               TARGET_CFLAGS="$ICMN" \
+               TARGET_LDFLAGS="$ICMN" \
+               TARGET_AR="$IAR rcus" \
+               TARGET_SYS=iOS BUILDMODE=static
+
+      - name: Rename library
+        run: cp luajit/src/libluajit.a lua51.a
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-arm64
+          path: lua51.a
+
+  build-android-arm64:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_API: "21"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone LuaJIT
+        run: git clone --depth 1 ${{ env.LUAJIT_REPO }} luajit
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          add-to-path: false
+
+      - name: Build LuaJIT for Android arm64
+        env:
+          NDK: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          cd luajit
+          NDKBIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
+          make -j$(nproc) HOST_CC="gcc" \
+               STATIC_CC="$NDKBIN/aarch64-linux-android${ANDROID_API}-clang" \
+               DYNAMIC_CC="$NDKBIN/aarch64-linux-android${ANDROID_API}-clang -fPIC" \
+               TARGET_LD="$NDKBIN/aarch64-linux-android${ANDROID_API}-clang" \
+               TARGET_AR="$NDKBIN/llvm-ar rcus" \
+               TARGET_STRIP="$NDKBIN/llvm-strip" \
+               CROSS="$NDKBIN/aarch64-linux-android-" \
+               TARGET_SYS=Linux BUILDMODE=dynamic
+
+      - name: Rename library
+        run: cp luajit/src/libluajit.so lua51.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64
+          path: lua51.so
+
+  build-android-armv7:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_API: "21"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone LuaJIT
+        run: git clone --depth 1 ${{ env.LUAJIT_REPO }} luajit
+
+      - name: Install 32-bit toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          add-to-path: false
+
+      - name: Build LuaJIT for Android armv7
+        env:
+          NDK: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          cd luajit
+          NDKBIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
+          make -j$(nproc) HOST_CC="gcc -m32" \
+               STATIC_CC="$NDKBIN/armv7a-linux-androideabi${ANDROID_API}-clang" \
+               DYNAMIC_CC="$NDKBIN/armv7a-linux-androideabi${ANDROID_API}-clang -fPIC" \
+               TARGET_LD="$NDKBIN/armv7a-linux-androideabi${ANDROID_API}-clang" \
+               TARGET_AR="$NDKBIN/llvm-ar rcus" \
+               TARGET_STRIP="$NDKBIN/llvm-strip" \
+               CROSS="$NDKBIN/arm-linux-androideabi-" \
+               TARGET_SYS=Linux BUILDMODE=dynamic
+
+      - name: Rename library
+        run: cp luajit/src/libluajit.so lua51.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-armv7
+          path: lua51.so
+
+  build-android-x86:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_API: "21"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone LuaJIT
+        run: git clone --depth 1 ${{ env.LUAJIT_REPO }} luajit
+
+      - name: Install 32-bit toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          add-to-path: false
+
+      - name: Build LuaJIT for Android x86
+        env:
+          NDK: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          cd luajit
+          NDKBIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
+          make -j$(nproc) HOST_CC="gcc -m32" \
+               STATIC_CC="$NDKBIN/i686-linux-android${ANDROID_API}-clang" \
+               DYNAMIC_CC="$NDKBIN/i686-linux-android${ANDROID_API}-clang -fPIC" \
+               TARGET_LD="$NDKBIN/i686-linux-android${ANDROID_API}-clang" \
+               TARGET_AR="$NDKBIN/llvm-ar rcus" \
+               TARGET_STRIP="$NDKBIN/llvm-strip" \
+               CROSS="$NDKBIN/i686-linux-android-" \
+               TARGET_SYS=Linux BUILDMODE=dynamic
+
+      - name: Rename library
+        run: cp luajit/src/libluajit.so lua51.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-x86
+          path: lua51.so
+
+  commit-binaries:
+    needs:
+      - build-windows
+      - build-linux
+      - build-macos-x64
+      - build-macos-arm64
+      - build-ios
+      - build-android-arm64
+      - build-android-armv7
+      - build-android-x86
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Copy binaries to runtime folders
+        run: |
+          mkdir -p runtimes/win-x64/native
+          mkdir -p runtimes/linux-x64/native
+          mkdir -p runtimes/osx-x64/native
+          mkdir -p runtimes/osx-arm64/native
+          mkdir -p runtimes/ios-arm64/native
+          mkdir -p runtimes/android-arm64/native
+          mkdir -p runtimes/android-armv7/native
+          mkdir -p runtimes/android-x86/native
+
+          cp artifacts/win-x64/lua51.dll runtimes/win-x64/native/
+          cp artifacts/linux-x64/lua51.so runtimes/linux-x64/native/
+          cp artifacts/osx-x64/lua51.dylib runtimes/osx-x64/native/
+          cp artifacts/osx-arm64/lua51.dylib runtimes/osx-arm64/native/
+          cp artifacts/ios-arm64/lua51.a runtimes/ios-arm64/native/
+          cp artifacts/android-arm64/lua51.so runtimes/android-arm64/native/
+          cp artifacts/android-armv7/lua51.so runtimes/android-armv7/native/
+          cp artifacts/android-x86/lua51.so runtimes/android-x86/native/
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add runtimes/
+          git diff --cached --quiet || git commit -m "build: update LuaJIT binaries"
+          git push
