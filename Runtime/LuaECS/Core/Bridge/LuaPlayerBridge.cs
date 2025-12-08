@@ -83,7 +83,10 @@ namespace LuaECS.Core
 				return 1;
 			}
 
-			var characterId = s_ScriptingSystem?.GetEntityIdFromEntity(control.controlledCharacter) ?? -1;
+			var characterId = LuaEntityRegistry.GetEntityIdFromEntity(
+				control.controlledCharacter,
+				s_EntityManager
+			);
 			if (characterId <= 0 && !TryEnsureLuaEntityId(control.controlledCharacter, out characterId))
 			{
 				Lua.lua_pushnil(L);
@@ -115,8 +118,8 @@ namespace LuaECS.Core
 			}
 
 			var characterEntity = Entity.Null;
-			if (characterId > 0 && s_ScriptingSystem != null)
-				characterEntity = s_ScriptingSystem.GetEntityFromId(characterId);
+			if (characterId > 0)
+				characterEntity = LuaEntityRegistry.GetEntityFromId(characterId);
 
 			if (characterId > 0 && characterEntity == Entity.Null)
 			{
@@ -193,10 +196,10 @@ namespace LuaECS.Core
 		static bool TryGetPlayerEntityFromLuaId(int entityId, out Entity entity)
 		{
 			entity = Entity.Null;
-			if (entityId <= 0 || s_ScriptingSystem == null)
+			if (entityId <= 0 || s_EntityManager == default)
 				return false;
 
-			entity = s_ScriptingSystem.GetEntityFromId(entityId);
+			entity = LuaEntityRegistry.GetEntityFromId(entityId);
 			if (entity == Entity.Null || !s_EntityManager.Exists(entity))
 				return false;
 
@@ -206,10 +209,10 @@ namespace LuaECS.Core
 		static bool TryEnsureLuaEntityId(Entity entity, out int entityId)
 		{
 			entityId = -1;
-			if (entity == Entity.Null || s_ScriptingSystem == null || s_EntityManager == default)
+			if (entity == Entity.Null || s_EntityManager == default)
 				return false;
 
-			var existingId = s_ScriptingSystem.GetEntityIdFromEntity(entity);
+			var existingId = LuaEntityRegistry.GetEntityIdFromEntity(entity, s_EntityManager);
 			if (existingId > 0)
 			{
 				entityId = existingId;
@@ -232,7 +235,7 @@ namespace LuaECS.Core
 				entityId = luaId.Value;
 			}
 
-			s_ScriptingSystem.EntityCollection.RegisterImmediate(entity, entityId);
+			LuaEntityRegistry.RegisterImmediate(entity, entityId, s_EntityManager);
 			return true;
 		}
 

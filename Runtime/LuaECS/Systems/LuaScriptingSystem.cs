@@ -7,6 +7,7 @@ namespace LuaECS.Systems
 	using LuaECS.Systems.Support;
 	using LuaVM.Core;
 	using Unity.CharacterController;
+	using Unity.Collections;
 	using Unity.Entities;
 	using Unity.Logging;
 	using Unity.Mathematics;
@@ -40,8 +41,6 @@ namespace LuaECS.Systems
 		LuaEntityCommandBufferSystem m_ECBSystem;
 		LuaScriptFulfillmentSystem m_FulfillmentSystem;
 
-		LuaEventDispatcher m_EventDispatcher;
-
 		EntityCommandBuffer m_CurrentECB;
 		bool m_ECBValid;
 
@@ -60,6 +59,8 @@ namespace LuaECS.Systems
 			int stateRef
 		)> m_PendingUpdates;
 
+		EntityQuery m_EventQuery;
+
 		static int s_FrameCount;
 
 		protected override void OnCreate()
@@ -67,17 +68,10 @@ namespace LuaECS.Systems
 			m_ECBSystem = World.GetOrCreateSystemManaged<LuaEntityCommandBufferSystem>();
 			m_FulfillmentSystem = World.GetOrCreateSystemManaged<LuaScriptFulfillmentSystem>();
 
-			var eventQuery = GetEntityQuery(
+			m_EventQuery = GetEntityQuery(
 				ComponentType.ReadWrite<LuaScript>(),
 				ComponentType.ReadWrite<LuaEvent>(),
 				ComponentType.ReadOnly<LuaEntityId>()
-			);
-
-			m_EventDispatcher = new LuaEventDispatcher(
-				null,
-				m_FulfillmentSystem.EntityIdManager,
-				EntityManager,
-				eventQuery
 			);
 
 			m_PendingUpdates = new List<(Entity, int, string, int, int)>(256);
@@ -96,8 +90,6 @@ namespace LuaECS.Systems
 				m_VM = LuaVMManager.GetOrCreate();
 
 				m_VM.RegisterBridgeNow(LuaECSBridge.RegisterFunctions);
-
-				m_EventDispatcher.SetVM(m_VM);
 				LuaECSBridge.Initialize(World, this);
 			}
 
@@ -143,13 +135,11 @@ namespace LuaECS.Systems
 
 		void ProcessPendingOperations()
 		{
-			var entityIdManager = m_FulfillmentSystem.EntityIdManager;
-
 			var creations = LuaECSBridge.FlushCreations();
 			for (var i = 0; i < creations.Length; i++)
 			{
 				var creation = creations[i];
-				entityIdManager.CreateEntityWithId(creation.EntityId, creation.Position, m_CurrentECB);
+				LuaEntityRegistry.CreateWithId(creation.EntityId, creation.Position, m_CurrentECB);
 			}
 			creations.Dispose();
 
@@ -157,17 +147,18 @@ namespace LuaECS.Systems
 			for (var i = 0; i < scripts.Length; i++)
 			{
 				var script = scripts[i];
-				entityIdManager.AddScriptDeferred(
+				LuaEntityRegistry.AddScriptDeferred(
 					script.EntityId,
 					script.ScriptName.ToString(),
-					m_CurrentECB
+					m_CurrentECB,
+					EntityManager
 				);
 			}
 			scripts.Dispose();
 
 			var destructions = LuaECSBridge.FlushDestructions();
 			for (var i = 0; i < destructions.Length; i++)
-				entityIdManager.DestroyEntityDeferred(destructions[i], m_CurrentECB);
+				LuaEntityRegistry.DestroyEntityDeferred(destructions[i], m_CurrentECB);
 			destructions.Dispose();
 		}
 
@@ -236,14 +227,106 @@ namespace LuaECS.Systems
 
 		void DispatchEvents()
 		{
-			m_EventDispatcher.CollectPendingEvents();
-			m_EventDispatcher.ClearEventBuffers(m_CurrentECB);
-			m_EventDispatcher.DispatchEvents();
+			CollectPendingEvents();
+			ClearEventBuffers();
+			DispatchCollectedEvents();
+		}
+
+		void CollectPendingEvents()
+		{
+			LuaECSBridge.ClearEventContext();
+			ref var ctx = ref LuaECSBridge.EventContext;
+			if (!ctx.IsValid)
+				return;
+
+			var entities = m_EventQuery.ToEntityArray(Allocator.Temp);
+			foreach (var entity in entities)
+			{
+				var events = EntityManager.GetBuffer<LuaEvent>(entity);
+				if (events.Length == 0)
+					continue;
+
+				LuaECSBridge.AddEntityToClear(entity);
+
+				var eventStartIndex = ctx.EventBuffer.Length;
+				for (var i = 0; i < events.Length; i++)
+				{
+					LuaECSBridge.AddEvent(events[i]);
+				}
+				var eventCount = events.Length;
+
+				var scripts = EntityManager.GetBuffer<LuaScript>(entity);
+				for (var i = 0; i < scripts.Length; i++)
+				{
+					var script = scripts[i];
+					if (script.StateRef >= 0 && !script.Disabled)
+					{
+						LuaECSBridge.AddEventDispatch(
+							entity,
+							i,
+							script.ScriptName,
+							script.EntityIndex,
+							script.StateRef,
+							eventStartIndex,
+							eventCount
+						);
+					}
+				}
+			}
+			entities.Dispose();
+		}
+
+		void ClearEventBuffers()
+		{
+			ref var ctx = ref LuaECSBridge.EventContext;
+			if (!ctx.IsValid)
+				return;
+
+			for (var i = 0; i < ctx.EntitiesToClear.Length; i++)
+			{
+				m_CurrentECB.SetBuffer<LuaEvent>(ctx.EntitiesToClear[i]);
+			}
+		}
+
+		void DispatchCollectedEvents()
+		{
+			ref var ctx = ref LuaECSBridge.EventContext;
+			if (!ctx.IsValid)
+				return;
+
+			for (var i = 0; i < ctx.PendingEvents.Length; i++)
+			{
+				var dispatch = ctx.PendingEvents[i];
+
+				if (!EntityManager.Exists(dispatch.Entity))
+					continue;
+
+				if (!EntityManager.HasComponent<LuaEntityId>(dispatch.Entity))
+					continue;
+
+				var scriptName = dispatch.ScriptName.ToString();
+
+				for (var j = 0; j < dispatch.EventCount; j++)
+				{
+					var evt = LuaECSBridge.GetEvent(dispatch.EventStartIndex + j);
+					var eventName = evt.EventName.ToString();
+					var sourceId = LuaEntityRegistry.GetEntityIdFromEntity(evt.Source, EntityManager);
+					var targetId = LuaEntityRegistry.GetEntityIdFromEntity(evt.Target, EntityManager);
+
+					m_VM.CallEvent(
+						scriptName,
+						dispatch.EntityIndex,
+						dispatch.StateRef,
+						eventName,
+						sourceId,
+						targetId,
+						evt.IntParam
+					);
+				}
+			}
 		}
 
 		#region Public API
-
-		public LuaEntityCollection EntityCollection => m_FulfillmentSystem.EntityCollection;
 
 		public int CreateEntityDeferred(float3 position)
 		{
@@ -252,7 +335,7 @@ namespace LuaECS.Systems
 				Log.Error("[LuaScripting] CreateEntityDeferred called outside of update");
 				return -1;
 			}
-			return m_FulfillmentSystem.EntityIdManager.CreateEntityDeferred(position, m_CurrentECB);
+			return LuaEntityRegistry.Create(position, m_CurrentECB);
 		}
 
 		public bool AddScriptDeferred(int entityId, string scriptName)
@@ -262,11 +345,7 @@ namespace LuaECS.Systems
 				Log.Error("[LuaScripting] AddScriptDeferred called outside of update");
 				return false;
 			}
-			return m_FulfillmentSystem.EntityIdManager.AddScriptDeferred(
-				entityId,
-				scriptName,
-				m_CurrentECB
-			);
+			return LuaEntityRegistry.AddScriptDeferred(entityId, scriptName, m_CurrentECB, EntityManager);
 		}
 
 		public void SetPositionDeferred(int entityId, float3 position)
@@ -276,7 +355,7 @@ namespace LuaECS.Systems
 				Log.Error("[LuaScripting] SetPositionDeferred called outside of update");
 				return;
 			}
-			m_FulfillmentSystem.EntityIdManager.SetPositionDeferred(entityId, position, m_CurrentECB);
+			LuaEntityRegistry.SetPositionDeferred(entityId, position, m_CurrentECB);
 		}
 
 		public void DestroyEntityDeferred(int entityId)
@@ -286,22 +365,22 @@ namespace LuaECS.Systems
 				Log.Error("[LuaScripting] DestroyEntityDeferred called outside of update");
 				return;
 			}
-			m_FulfillmentSystem.EntityIdManager.DestroyEntityDeferred(entityId, m_CurrentECB);
+			LuaEntityRegistry.DestroyEntityDeferred(entityId, m_CurrentECB);
 		}
 
 		public int GetEntityIdFromEntity(Entity entity)
 		{
-			return m_FulfillmentSystem.GetEntityIdFromEntity(entity);
+			return LuaEntityRegistry.GetEntityIdFromEntity(entity, EntityManager);
 		}
 
 		public Entity GetEntityFromId(int entityId)
 		{
-			return m_FulfillmentSystem.GetEntityFromId(entityId);
+			return LuaEntityRegistry.GetEntityFromId(entityId);
 		}
 
 		public bool IsDeferred(int entityId)
 		{
-			return m_FulfillmentSystem.EntityIdManager.IsDeferred(entityId);
+			return LuaEntityRegistry.IsPending(entityId);
 		}
 
 		public void SendCommand(Entity entity, string command)

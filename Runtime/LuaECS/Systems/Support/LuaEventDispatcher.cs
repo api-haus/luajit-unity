@@ -25,19 +25,12 @@ namespace LuaECS.Systems.Support
 		readonly List<Entity> m_EntitiesToClear;
 
 		LuaVMManager m_VM;
-		LuaEntityIdManager m_EntityIdManager;
 		EntityManager m_EntityManager;
 		EntityQuery m_EventQuery;
 
-		public LuaEventDispatcher(
-			LuaVMManager vm,
-			LuaEntityIdManager entityIdManager,
-			EntityManager entityManager,
-			EntityQuery eventQuery
-		)
+		public LuaEventDispatcher(LuaVMManager vm, EntityManager entityManager, EntityQuery eventQuery)
 		{
 			m_VM = vm;
-			m_EntityIdManager = entityIdManager;
 			m_EntityManager = entityManager;
 			m_EventQuery = eventQuery;
 			m_PendingEvents = new List<(Entity, int, string, int, int, List<LuaEvent>)>(64);
@@ -122,15 +115,14 @@ namespace LuaECS.Systems.Support
 				if (!m_EntityManager.Exists(entity))
 					continue;
 
-				// Skip entities marked for destruction (LuaEntityId removed)
 				if (!m_EntityManager.HasComponent<LuaEntityId>(entity))
 					continue;
 
 				foreach (var evt in events)
 				{
 					var eventName = evt.EventName.ToString();
-					var sourceId = m_EntityIdManager.GetEntityIdFromEntity(evt.Source);
-					var targetId = m_EntityIdManager.GetEntityIdFromEntity(evt.Target);
+					var sourceId = LuaEntityRegistry.GetEntityIdFromEntity(evt.Source, m_EntityManager);
+					var targetId = LuaEntityRegistry.GetEntityIdFromEntity(evt.Target, m_EntityManager);
 
 					m_VM.CallEvent(
 						scriptName,

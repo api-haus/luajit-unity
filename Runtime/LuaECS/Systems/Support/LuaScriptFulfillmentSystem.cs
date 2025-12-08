@@ -15,20 +15,17 @@ namespace LuaECS.Systems.Support
 	public partial class LuaScriptFulfillmentSystem : SystemBase
 	{
 		LuaVMManager m_VM;
-		LuaEntityIdManager m_EntityIdManager;
 		EntityQuery m_RequestQuery;
-
-		public LuaEntityIdManager EntityIdManager => m_EntityIdManager;
 
 		protected override void OnCreate()
 		{
-			m_EntityIdManager = new LuaEntityIdManager(EntityManager);
+			LuaEntityRegistry.Initialize();
 			m_RequestQuery = GetEntityQuery(ComponentType.ReadWrite<LuaScriptRequest>());
 		}
 
 		protected override void OnDestroy()
 		{
-			m_EntityIdManager?.Dispose();
+			LuaEntityRegistry.Dispose();
 		}
 
 		protected override void OnStartRunning()
@@ -38,7 +35,7 @@ namespace LuaECS.Systems.Support
 
 		protected override void OnUpdate()
 		{
-			m_EntityIdManager.BeginFrame();
+			LuaEntityRegistry.BeginFrame(EntityManager);
 
 			if (m_VM == null || !m_VM.IsValid)
 			{
@@ -79,7 +76,7 @@ namespace LuaECS.Systems.Support
 				if (!hasUnfulfilled)
 					continue;
 
-				var entityId = m_EntityIdManager.GetOrAssignEntityId(entity, ecb);
+				var entityId = LuaEntityRegistry.GetOrAssignEntityId(entity, ecb, EntityManager);
 
 				if (!EntityManager.HasBuffer<LuaScript>(entity))
 				{
@@ -253,10 +250,8 @@ namespace LuaECS.Systems.Support
 		}
 
 		public int GetEntityIdFromEntity(Entity entity) =>
-			m_EntityIdManager.GetEntityIdFromEntity(entity);
+			LuaEntityRegistry.GetEntityIdFromEntity(entity, EntityManager);
 
-		public Entity GetEntityFromId(int entityId) => m_EntityIdManager.GetEntityFromId(entityId);
-
-		public LuaEntityCollection EntityCollection => m_EntityIdManager.Collection;
+		public Entity GetEntityFromId(int entityId) => LuaEntityRegistry.GetEntityFromId(entityId);
 	}
 }

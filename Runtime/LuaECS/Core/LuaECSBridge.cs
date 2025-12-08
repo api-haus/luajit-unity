@@ -25,6 +25,31 @@ namespace LuaECS.Core
 	}
 
 	/// <summary>
+	/// Unmanaged struct for pending event dispatch information.
+	/// </summary>
+	public struct PendingEventDispatch
+	{
+		public Entity Entity;
+		public int ScriptIndex;
+		public FixedString64Bytes ScriptName;
+		public int EntityIndex;
+		public int StateRef;
+		public int EventStartIndex;
+		public int EventCount;
+	}
+
+	/// <summary>
+	/// Unmanaged event context for SharedStatic storage.
+	/// </summary>
+	public struct LuaEventContextData
+	{
+		public UnsafeList<PendingEventDispatch> PendingEvents;
+		public UnsafeList<LuaEvent> EventBuffer;
+		public UnsafeList<Entity> EntitiesToClear;
+		public bool IsValid;
+	}
+
+	/// <summary>
 	/// Unmanaged context for Burst-compiled Lua bridge functions.
 	/// Updated each frame before script execution.
 	/// </summary>
@@ -59,12 +84,13 @@ namespace LuaECS.Core
 	/// Static state required for Burst-compatible [MonoPInvokeCallback] methods.
 	/// Domain-specific functions are organized in partial classes under Bridge/.
 	/// </summary>
-	[BurstCompile]
 	public static partial class LuaECSBridge
 	{
 		struct BurstContextMarker { }
 
 		struct NextEntityIdMarker { }
+
+		struct EventContextMarker { }
 
 		static World s_World;
 		static EntityManager s_EntityManager;
@@ -84,6 +110,11 @@ namespace LuaECS.Core
 		static readonly SharedStatic<int> s_NextEntityId =
 			SharedStatic<int>.GetOrCreate<NextEntityIdMarker>();
 
+		static readonly SharedStatic<LuaEventContextData> s_EventContext =
+			SharedStatic<LuaEventContextData>.GetOrCreate<EventContextMarker, LuaEventContextData>();
+
+		public static ref LuaEventContextData EventContext => ref s_EventContext.Data;
+
 		public static void Initialize(World world, LuaScriptingSystem scriptingSystem)
 		{
 			if (s_Initialized)
@@ -102,6 +133,18 @@ namespace LuaECS.Core
 			s_PendingCreations = new NativeList<PendingEntityCreation>(32, Allocator.Persistent);
 			s_PendingScripts = new NativeList<PendingScriptAddition>(32, Allocator.Persistent);
 			s_NextEntityId.Data = 1;
+
+			unsafe
+			{
+				s_EventContext.Data = new LuaEventContextData
+				{
+					PendingEvents = new UnsafeList<PendingEventDispatch>(64, Allocator.Persistent),
+					EventBuffer = new UnsafeList<LuaEvent>(128, Allocator.Persistent),
+					EntitiesToClear = new UnsafeList<Entity>(64, Allocator.Persistent),
+					IsValid = true,
+				};
+			}
+
 			if (s_PlayerQueryInitialized)
 				s_PlayerQuery.Dispose();
 
@@ -125,6 +168,18 @@ namespace LuaECS.Core
 
 			if (s_PendingScripts.IsCreated)
 				s_PendingScripts.Dispose();
+
+			ref var eventCtx = ref s_EventContext.Data;
+			if (eventCtx.IsValid)
+			{
+				if (eventCtx.PendingEvents.IsCreated)
+					eventCtx.PendingEvents.Dispose();
+				if (eventCtx.EventBuffer.IsCreated)
+					eventCtx.EventBuffer.Dispose();
+				if (eventCtx.EntitiesToClear.IsCreated)
+					eventCtx.EntitiesToClear.Dispose();
+				eventCtx = default;
+			}
 
 			if (s_PlayerQueryInitialized)
 			{
@@ -154,8 +209,7 @@ namespace LuaECS.Core
 				return;
 			}
 
-			var collection = s_ScriptingSystem.EntityCollection;
-			if (!collection.IsCreated)
+			if (!LuaEntityRegistry.IsCreated)
 			{
 				s_BurstContext.Data = default;
 				return;
@@ -165,7 +219,7 @@ namespace LuaECS.Core
 			{
 				s_BurstContext.Data = new BurstBridgeContext
 				{
-					EntityIdMap = collection.EntityIdMap,
+					EntityIdMap = LuaEntityRegistry.EntityIdMap,
 					TransformLookup = transformLookup,
 					ScriptBufferLookup = scriptBufferLookup,
 					PendingCommands = s_PendingCommands.GetUnsafeList(),
@@ -218,10 +272,7 @@ namespace LuaECS.Core
 
 		static Entity GetEntityFromId(int entityId)
 		{
-			if (s_ScriptingSystem == null)
-				return Entity.Null;
-
-			return s_ScriptingSystem.GetEntityFromId(entityId);
+			return LuaEntityRegistry.GetEntityFromId(entityId);
 		}
 
 		static float3 TableToFloat3(lua_State L, int index)
@@ -462,6 +513,89 @@ namespace LuaECS.Core
 					break;
 				current = prev;
 			}
+		}
+
+		/// <summary>
+		/// Clears the event context for a new frame.
+		/// </summary>
+		public static void ClearEventContext()
+		{
+			ref var ctx = ref s_EventContext.Data;
+			if (!ctx.IsValid)
+				return;
+
+			ctx.PendingEvents.Clear();
+			ctx.EventBuffer.Clear();
+			ctx.EntitiesToClear.Clear();
+		}
+
+		/// <summary>
+		/// Adds an event dispatch entry to the context.
+		/// </summary>
+		public static void AddEventDispatch(
+			Entity entity,
+			int scriptIndex,
+			FixedString64Bytes scriptName,
+			int entityIndex,
+			int stateRef,
+			int eventStartIndex,
+			int eventCount
+		)
+		{
+			ref var ctx = ref s_EventContext.Data;
+			if (!ctx.IsValid)
+				return;
+
+			ctx.PendingEvents.Add(
+				new PendingEventDispatch
+				{
+					Entity = entity,
+					ScriptIndex = scriptIndex,
+					ScriptName = scriptName,
+					EntityIndex = entityIndex,
+					StateRef = stateRef,
+					EventStartIndex = eventStartIndex,
+					EventCount = eventCount,
+				}
+			);
+		}
+
+		/// <summary>
+		/// Adds an event to the event buffer.
+		/// </summary>
+		public static int AddEvent(LuaEvent evt)
+		{
+			ref var ctx = ref s_EventContext.Data;
+			if (!ctx.IsValid)
+				return -1;
+
+			var index = ctx.EventBuffer.Length;
+			ctx.EventBuffer.Add(evt);
+			return index;
+		}
+
+		/// <summary>
+		/// Adds an entity to the clear list.
+		/// </summary>
+		public static void AddEntityToClear(Entity entity)
+		{
+			ref var ctx = ref s_EventContext.Data;
+			if (!ctx.IsValid)
+				return;
+
+			ctx.EntitiesToClear.Add(entity);
+		}
+
+		/// <summary>
+		/// Gets an event from the buffer by index.
+		/// </summary>
+		public static LuaEvent GetEvent(int index)
+		{
+			ref var ctx = ref s_EventContext.Data;
+			if (!ctx.IsValid || index < 0 || index >= ctx.EventBuffer.Length)
+				return default;
+
+			return ctx.EventBuffer[index];
 		}
 	}
 }

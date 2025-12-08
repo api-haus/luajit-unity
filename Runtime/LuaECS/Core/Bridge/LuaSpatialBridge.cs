@@ -128,7 +128,7 @@ namespace LuaECS.Core
 				var distSq = math.distancesq(center, transforms[i].Position);
 				if (distSq <= radiusSq)
 				{
-					var entityId = s_ScriptingSystem.GetEntityIdFromEntity(entities[i]);
+					var entityId = LuaEntityRegistry.GetIdFromEntity(entities[i]);
 					if (entityId > 0)
 					{
 						Lua.lua_pushinteger(L, entityId);

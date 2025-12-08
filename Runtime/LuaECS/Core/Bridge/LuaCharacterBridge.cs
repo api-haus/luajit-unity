@@ -160,7 +160,7 @@ namespace LuaECS.Core
 				entityManager.AddBuffer<LuaECS.Components.LuaEvent>(entity);
 				entityManager.AddBuffer<LuaECS.Components.LuaCommand>(entity);
 
-				scriptingSystem.EntityCollection.RegisterImmediate(entity, entityId);
+				LuaEntityRegistry.RegisterImmediate(entity, entityId, entityManager);
 
 				Unity.Logging.Log.Info(
 					"[LuaCharacterBridge] Successfully created character entity {0} at position {1}",
