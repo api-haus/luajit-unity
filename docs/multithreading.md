@@ -103,7 +103,6 @@ Frame Update
 | `has_script`          | ⚠️ Sequential | Buffer iteration with string compare |
 | `query_entities_near` | ⚠️ Sequential | EntityQuery creation                 |
 | `get_entity_count`    | ⚠️ Sequential | EntityQuery creation                 |
-| `emit_command`        | ⚠️ Sequential | Enum parsing from string             |
 | `log_*`               | ⚠️ Sequential | String handling                      |
 
 ### Future Work: Parallel-Safe Variants
@@ -152,14 +151,13 @@ public class LuaWorkerPool : IDisposable
     {
         public lua_State State;
         public Dictionary<string, int> ScriptRefs;
-        public NativeList<LuaCommand> Commands;
+        public EntityCommandBuffer.ParallelWriter ECB;
         public NativeList<int> Destructions;
     }
-    
+
     Worker[] m_Workers;
-    
+
     public void ExecuteParallel(NativeList<ScriptUpdateRequest> requests, float deltaTime);
-    public void MergeCommandQueues(NativeList<LuaCommand> target);
 }
 ```
 
@@ -169,11 +167,11 @@ public class LuaWorkerPool : IDisposable
 public unsafe struct WorkerBridgeContext
 {
     public int WorkerId;
-    
-    // Per-worker write queues
-    public UnsafeList<LuaCommand>* Commands;
+
+    // Per-worker ECB writer
+    public EntityCommandBuffer.ParallelWriter ECB;
     public UnsafeList<int>* Destructions;
-    
+
     // Shared read-only data
     [ReadOnly] public UnsafeHashMap<int, Entity> EntityIdMap;
     [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;

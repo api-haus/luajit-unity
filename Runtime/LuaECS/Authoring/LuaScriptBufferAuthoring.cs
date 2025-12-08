@@ -69,7 +69,6 @@ namespace LuaECS.Authoring
 					);
 				}
 
-				AddBuffer<LuaCommand>(entity);
 				AddBuffer<LuaEvent>(entity);
 
 				// Add LuaEntityId with sentinel value 0. The fulfillment system will assign

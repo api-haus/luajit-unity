@@ -10,7 +10,6 @@ sequenceDiagram
     participant LSS as LuaScriptingSystem
     participant VM as LuaVMManager
     participant Bridge as LuaECSBridge
-    participant CmdProc as LuaCommandProcessorSystem
     participant ECB as EntityCommandBuffer
 
     Note over Unity,ECB: Frame Start - InitializationSystemGroup
@@ -60,12 +59,12 @@ sequenceDiagram
         LSS->>LSS: Query LuaScript (StateRef >= 0, !Disabled)
         loop Each active script
             LSS->>VM: CallUpdate(script, entity, state, dt)
-            VM->>Bridge: ecs.move_toward()
-            Bridge->>Bridge: Queue to s_PendingCommands
-            VM->>Bridge: ecs.query_entities_near()
+            VM->>Bridge: transform.move_toward()
+            Bridge->>ECB: Direct ECB write
+            VM->>Bridge: spatial.query_near()
             Bridge-->>VM: entity list
-            VM->>Bridge: ecs.emit_command()
-            Bridge->>Bridge: Queue command
+            VM->>Bridge: entities.destroy()
+            Bridge->>ECB: ECB.RemoveComponent<LuaEntityId>
         end
     end
 
@@ -87,22 +86,7 @@ sequenceDiagram
 
     LSS-->>Unity: Update complete
 
-    Note over Unity,CmdProc: Command Processing (After LuaScriptingSystem)
-
-    Unity->>CmdProc: OnUpdate()
-    CmdProc->>Bridge: FlushCommands()
-    Bridge-->>CmdProc: NativeList<LuaCommand>
-    
-    rect rgb(40, 80, 60)
-        Note over CmdProc: Burst-Compiled Parallel Job
-        CmdProc->>CmdProc: Sort commands (Move vs Other)
-        CmdProc->>CmdProc: ProcessMoveCommandsJob.ScheduleParallel()
-        CmdProc->>CmdProc: Process Attack/Destroy on main thread
-    end
-
-    CmdProc-->>Unity: Commands processed
-
-    Note over Unity,ECB: Frame End - ECB Playback
+    Note over Unity,ECB: Frame End - ECB Playback (EndSimulationEntityCommandBufferSystem)
     Unity->>ECB: Playback structural changes
 ```
 
@@ -114,9 +98,9 @@ InitializationSystemGroup
 └── LuaScriptCleanupSystem      (handles destruction, releases VM state)
 
 SimulationSystemGroup
-├── LuaScriptingSystem          (runtime updates, events, pending operations)
-├── LuaCommandProcessorSystem   (Burst-compiled movement)
-└── LuaEntityCommandBufferSystem (structural change playback)
+└── LuaScriptingSystem          (runtime updates, events, direct ECB writes)
+
+EndSimulationEntityCommandBufferSystem (Unity built-in, structural change playback)
 ```
 
 ## Key Observations
@@ -125,10 +109,10 @@ SimulationSystemGroup
 
 2. **Disabled Script Filtering**: Runtime systems (update, events) skip scripts with `Disabled=true` or `StateRef < 0`.
 
-3. **Deferred Commands**: Lua scripts queue commands via `LuaECSBridge.s_PendingCommands`; these are processed by `LuaCommandProcessorSystem` after all scripts have run.
+3. **Direct ECB Access**: Bridge functions write directly to `EntityCommandBuffer` - no intermediate queues. The ECB is created from Unity's `EndSimulationEntityCommandBufferSystem`.
 
-4. **Burst Isolation**: Movement commands are processed in a Burst-compiled parallel job (`ProcessMoveCommandsJob`), separate from main-thread operations.
+4. **Domain-Oriented API**: Bridge functions are organized by domain: `entities.*`, `transform.*`, `spatial.*`, `events.*`.
 
-5. **ECB Pattern**: All structural changes (entity creation, component addition) go through `EntityCommandBuffer` and are played back at frame end via `LuaEntityCommandBufferSystem`.
+5. **ECB Pattern**: All structural changes (entity creation, component addition, destruction) go through `EntityCommandBuffer` and are played back at frame end via Unity's built-in `EndSimulationEntityCommandBufferSystem`.
 
 6. **Request Persistence**: Fulfilled `LuaScriptRequest` entries remain in the buffer with `Fulfilled=true` for tracking and deduplication.

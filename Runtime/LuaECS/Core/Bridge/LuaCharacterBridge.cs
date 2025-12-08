@@ -161,7 +161,6 @@ namespace LuaECS.Core
 
 				entityManager.AddBuffer<LuaScript>(entity);
 				entityManager.AddBuffer<LuaEvent>(entity);
-				entityManager.AddBuffer<LuaCommand>(entity);
 
 				LuaEntityRegistry.RegisterImmediate(entity, entityId, entityManager);
 

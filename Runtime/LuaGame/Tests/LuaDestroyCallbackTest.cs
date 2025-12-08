@@ -164,7 +164,6 @@ namespace LuaGame.Tests
 					fulfilled = false,
 				}
 			);
-			m_EntityManager.AddBuffer<LuaCommand>(entity);
 			m_EntityManager.AddBuffer<LuaEvent>(entity);
 			m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 			m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(0, 0, 0));

@@ -59,7 +59,6 @@ namespace LuaECS.Demo
 					fulfilled = false,
 				}
 			);
-			m_EntityManager.AddBuffer<LuaCommand>(m_BootstrapEntity);
 			m_EntityManager.AddBuffer<LuaEvent>(m_BootstrapEntity);
 			m_EntityManager.AddComponentData(m_BootstrapEntity, new LuaEntityId { value = 0 });
 

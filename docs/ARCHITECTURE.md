@@ -38,29 +38,26 @@ Runtime/
   LuaECS/
     Core/
       LuaECSBridge.cs         # Coordinator: registration, shared state
-      LuaEntityCollection.cs  # O(1) entity ID lookups
+      LuaEntityRegistry.cs    # O(1) entity ID lookups via SharedStatic
       LuaScriptPathUtility.cs # Script file resolution, hash generation
       Bridge/
-        LuaTransformBridge.cs   # get_position, set_position, get_rotation
-        LuaSpatialBridge.cs     # distance, query_entities_near
-        LuaEntityBridge.cs      # create_entity, add_script, destroy_entity
-        LuaCommandBridge.cs     # emit_command, move_toward
-        LuaLogBridge.cs         # log, log_debug, log_warning, log_error
+        LuaEntitiesBridge.cs    # entities.create, destroy, add_script, has_script
+        LuaTransformBridge.cs   # transform.get_position, set_position, move_toward
+        LuaSpatialBridge.cs     # spatial.distance, query_near, get_entity_count
+        LuaEventsBridge.cs      # events.send_attack
+        LuaLogBridge.cs         # log.info, debug, warning, error
         LuaCharacterBridge.cs   # character.create, set_move_input, is_grounded
         LuaInputBridge.cs       # input.get_move, get_look, get_jump
         LuaPlayerBridge.cs      # player.get, is_player
         LuaDrawBridge.cs        # draw.line, draw.sphere (debug)
     Components/
       LuaScriptComponent.cs   # LuaScriptRequest and LuaScript buffers
-      LuaCommand.cs           # Command buffer for Burst execution
       LuaEvent.cs             # Event dispatch to Lua
       LuaPlayerComponents.cs  # Player tag and related components
     Systems/
-      LuaScriptingSystem.cs       # Orchestrator: runtime updates, events
-      LuaCommandProcessorSystem.cs # Burst job command processing
+      LuaScriptingSystem.cs       # Orchestrator: runtime updates, events, direct ECB
       LuaPlayerBootstrapSystem.cs # Player entity setup
       Support/
-        LuaEntityIdManager.cs        # ID allocation, Entity<->ID lookup
         LuaScriptFulfillmentSystem.cs # Request processing, script init, disabling
         LuaEventDispatcher.cs        # Event collection, dispatch
         LuaScriptCleanupSystem.cs    # Script state cleanup, OnDestroy
@@ -103,10 +100,9 @@ Tests/
   LuaECS.Tests/
     LuaScriptLifecycleTest.cs
     LuaEntityCreationTest.cs
-    LuaCommandProcessingTest.cs
     LuaSpatialQueryTest.cs
     LuaEventDispatchTest.cs
-    LuaEntityCollectionTest.cs
+    LuaEntityRegistryTest.cs
     LuaStateCleanupTest.cs
   LuaVM.Tests/
     BurstIdAllocatorTests.cs
@@ -178,49 +174,43 @@ The framework provides primitives that Lua cannot efficiently implement.
 
 ### Core Systems (Implemented)
 
-| System                       | Purpose                          | Thread | Burst |
-| ---------------------------- | -------------------------------- | ------ | ----- |
-| `LuaScriptingSystem`         | Runtime updates, event dispatch  | Main   | No    |
-| `LuaScriptFulfillmentSystem` | Script initialization, disabling | Main   | No    |
-| `LuaScriptCleanupSystem`     | Destruction, OnDestroy, cleanup  | Main   | No    |
-| `LuaCommandProcessorSystem`  | Execute queued commands          | Worker | Yes   |
-| `LuaPlayerBootstrapSystem`   | Player entity setup              | Main   | No    |
+| System                                 | Purpose                                    | Thread | Burst |
+| -------------------------------------- | ------------------------------------------ | ------ | ----- |
+| `LuaScriptingSystem`                   | Runtime updates, event dispatch, ECB       | Main   | No    |
+| `LuaScriptFulfillmentSystem`           | Script initialization, disabling           | Main   | No    |
+| `LuaScriptCleanupSystem`               | Destruction, OnDestroy, cleanup            | Main   | No    |
+| `LuaPlayerBootstrapSystem`             | Player entity setup                        | Main   | No    |
+| `EndSimulationEntityCommandBufferSystem` | Unity built-in structural change playback | Main   | N/A   |
 
 ### Bridge API (Implemented)
 
-The bridge is decomposed into domain-specific modules under `Runtime/LuaECS/Core/Bridge/`:
+The bridge uses a **domain-oriented API** with direct ECB access. Modules are under `Runtime/LuaECS/Core/Bridge/`:
 
-| Module               | Lua Namespace | Functions                                                             | Notes                         |
-| -------------------- | ------------- | --------------------------------------------------------------------- | ----------------------------- |
-| `LuaTransformBridge` | `ecs`         | `get_position`, `set_position`, `get_rotation`                        | Read/write entity transforms  |
-| `LuaSpatialBridge`   | `ecs`         | `distance`, `query_entities_near`, `get_entity_count`                 | Distance checks, area queries |
-| `LuaEntityBridge`    | `ecs`         | `create_entity`, `add_script`, `destroy_entity`                       | Entity management             |
-| `LuaCommandBridge`   | `ecs`         | `emit_command`, `move_toward`                                         | Deferred command execution    |
-| `LuaLogBridge`       | `log`         | `info`, `debug`, `warning`, `error`                                   | Via Unity.Logging             |
-| `LuaCharacterBridge` | `character`   | `create`, `set_move_input`, `set_jump`, `is_grounded`, `get_velocity` | Character controller          |
-| `LuaInputBridge`     | `input`       | `get_move`, `get_look`, `get_jump`                                    | Unity Input System            |
-| `LuaPlayerBridge`    | `player`      | `get`, `is_player`                                                    | Player entity queries         |
-| `LuaDrawBridge`      | `draw`        | `line`, `sphere`                                                      | Debug visualization           |
+| Module               | Lua Namespace | Functions                                                             | Notes                                 |
+| -------------------- | ------------- | --------------------------------------------------------------------- | ------------------------------------- |
+| `LuaEntitiesBridge`  | `entities`    | `create`, `destroy`, `add_script`, `has_script`                       | Entity lifecycle via direct ECB       |
+| `LuaTransformBridge` | `transform`   | `get_position`, `set_position`, `get_rotation`, `move_toward`         | Transform read/write + movement       |
+| `LuaSpatialBridge`   | `spatial`     | `distance`, `query_near`, `get_entity_count`                          | Distance checks, area queries         |
+| `LuaEventsBridge`    | `events`      | `send_attack`                                                         | Cross-entity event dispatch           |
+| `LuaLogBridge`       | `log`         | `info`, `debug`, `warning`, `error`                                   | Via Unity.Logging                     |
+| `LuaCharacterBridge` | `character`   | `create`, `set_move_input`, `set_jump`, `is_grounded`, `get_velocity` | Character controller                  |
+| `LuaInputBridge`     | `input`       | `get_move`, `get_look`, `get_jump`                                    | Unity Input System                    |
+| `LuaPlayerBridge`    | `player`      | `get`, `is_player`                                                    | Player entity queries                 |
+| `LuaDrawBridge`      | `draw`        | `line`, `sphere`                                                      | Debug visualization                   |
 
-### Support Managers
+Legacy `ecs.*` namespace is preserved for backward compatibility.
 
-The scripting system delegates to specialized managers under `Runtime/LuaECS/Systems/Support/`:
+### Support Systems
 
-| Manager                      | Responsibility                                     |
+The scripting system delegates to specialized systems under `Runtime/LuaECS/Systems/Support/`:
+
+| System                       | Responsibility                                     |
 | ---------------------------- | -------------------------------------------------- |
-| `LuaEntityIdManager`         | Entity ID allocation, bidirectional lookups        |
 | `LuaScriptFulfillmentSystem` | Request processing, script init, disabling         |
 | `LuaEventDispatcher`         | Event collection, clearing, and dispatch           |
 | `LuaScriptCleanupSystem`     | OnDestroy callbacks, state release, entity cleanup |
 
-### Command Types (Implemented)
-
-| Command         | Execution | Description                 |
-| --------------- | --------- | --------------------------- |
-| `Move`          | Burst     | Teleport to position        |
-| `MoveToward`    | Burst     | Move toward target at speed |
-| `Attack`        | Main      | Emit attack event to target |
-| `DestroyEntity` | Main      | Remove entity from world    |
+Entity ID management is handled by `LuaEntityRegistry` via SharedStatic for Burst compatibility.
 
 ---
 

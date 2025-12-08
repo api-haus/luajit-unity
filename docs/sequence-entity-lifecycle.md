@@ -23,7 +23,6 @@ sequenceDiagram
     LSS->>ECB: AddComponent(LuaEntityId)
     LSS->>ECB: AddBuffer<LuaScriptRequest>()
     LSS->>ECB: AddBuffer<LuaEvent>()
-    LSS->>ECB: AddBuffer<LuaCommand>()
     LSS->>LSS: Track in m_DeferredEntities[id] = entity
     LSS-->>Bridge: entityId
     Bridge-->>Lua: entityId (usable immediately)

@@ -288,8 +288,6 @@ namespace LuaECS.Core
 				s_entityManager.AddBuffer<LuaScriptRequest>(entity);
 			if (!s_entityManager.HasBuffer<LuaEvent>(entity))
 				s_entityManager.AddBuffer<LuaEvent>(entity);
-			if (!s_entityManager.HasBuffer<LuaCommand>(entity))
-				s_entityManager.AddBuffer<LuaCommand>(entity);
 
 			TryEnsureLuaEntityId(entity, out _);
 			return entity;

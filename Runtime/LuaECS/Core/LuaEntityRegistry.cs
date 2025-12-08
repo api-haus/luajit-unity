@@ -241,7 +241,6 @@ namespace LuaECS.Core
 			ecb.AddComponent(entity, new LuaEntityId { value = id });
 			ecb.AddBuffer<LuaScriptRequest>(entity);
 			ecb.AddBuffer<LuaEvent>(entity);
-			ecb.AddBuffer<LuaCommand>(entity);
 
 			data.pendingCreations[id] = entity;
 		}
@@ -576,8 +575,6 @@ namespace LuaECS.Core
 				ecb.AddBuffer<LuaScriptRequest>(entity);
 			if (!entityManager.HasBuffer<LuaEvent>(entity))
 				ecb.AddBuffer<LuaEvent>(entity);
-			if (!entityManager.HasBuffer<LuaCommand>(entity))
-				ecb.AddBuffer<LuaCommand>(entity);
 
 			ecb.AppendToBuffer(entity, request);
 			return true;

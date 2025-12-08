@@ -129,7 +129,6 @@ namespace LuaECS.Tests
 					}
 				);
 
-				m_EntityManager.AddBuffer<LuaCommand>(entity);
 				m_EntityManager.AddBuffer<LuaEvent>(entity);
 				m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 				m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(x, 0, z));
@@ -157,7 +156,6 @@ namespace LuaECS.Tests
 					}
 				);
 
-				m_EntityManager.AddBuffer<LuaCommand>(entity);
 				m_EntityManager.AddBuffer<LuaEvent>(entity);
 				m_EntityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
 				m_EntityManager.SetComponentData(entity, LocalTransform.FromPosition(x, 0, z));

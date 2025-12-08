@@ -5,27 +5,32 @@ namespace LuaECS.Core
 	using Components;
 	using LuaNET.LuaJIT;
 	using Unity.Burst;
+	using Unity.Collections;
 	using Unity.Entities;
 	using Unity.Mathematics;
 	using Unity.Transforms;
 
 	/// <summary>
-	/// Legacy entity functions for backward compatibility with ecs.* namespace.
-	/// New code should use entities.* namespace from LuaEntitiesBridge.
+	/// Bridge functions for entity lifecycle operations.
+	/// Lua API: entities.create(), entities.destroy(), entities.add_script(), entities.has_script()
 	/// </summary>
 	public static partial class LuaECSBridge
 	{
-		internal static void RegisterEntityFunctions(lua_State l)
+		internal static void RegisterEntitiesFunctions(lua_State l)
 		{
-			RegisterFunction(l, "create_entity", ECS_CreateEntity);
-			RegisterFunction(l, "add_script", ECS_AddScript);
-			RegisterFunction(l, "has_script", ECS_HasScript);
-			RegisterFunction(l, "destroy_entity", ECS_DestroyEntity);
+			Lua.lua_newtable(l);
+
+			RegisterFunction(l, "create", Entities_Create);
+			RegisterFunction(l, "destroy", Entities_Destroy);
+			RegisterFunction(l, "add_script", Entities_AddScript);
+			RegisterFunction(l, "has_script", Entities_HasScript);
+
+			Lua.lua_setglobal(l, "entities");
 		}
 
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
 		[BurstCompile]
-		static int ECS_CreateEntity(lua_State l)
+		static int Entities_Create(lua_State l)
 		{
 			var position = float3.zero;
 			var argCount = Lua.lua_gettop(l);
@@ -71,7 +76,44 @@ namespace LuaECS.Core
 
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
 		[BurstCompile]
-		static int ECS_AddScript(lua_State l)
+		static int Entities_Destroy(lua_State l)
+		{
+			var entityId = (int)Lua.lua_tointeger(l, 1);
+			if (entityId <= 0)
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid)
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			// Try to get entity from registry
+			if (!ctx.entityIdMap.TryGetValue(entityId, out var entity) || entity == Entity.Null)
+			{
+				// Check pending entities
+				entity = GetPendingEntity(entityId);
+				if (entity == Entity.Null)
+				{
+					Lua.lua_pushboolean(l, 0);
+					return 1;
+				}
+			}
+
+			// Destroy via ECB - remove LuaEntityId to trigger staged cleanup
+			ctx.ecb.RemoveComponent<LuaEntityId>(entity);
+
+			Lua.lua_pushboolean(l, 1);
+			return 1;
+		}
+
+		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
+		[BurstCompile]
+		static int Entities_AddScript(lua_State l)
 		{
 			var entityId = (int)Lua.lua_tointeger(l, 1);
 			if (entityId <= 0)
@@ -120,7 +162,7 @@ namespace LuaECS.Core
 
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
 		[BurstCompile]
-		static int ECS_HasScript(lua_State l)
+		static int Entities_HasScript(lua_State l)
 		{
 			var entityId = (int)Lua.lua_tointeger(l, 1);
 			if (entityId <= 0)
@@ -138,43 +180,6 @@ namespace LuaECS.Core
 			var entity = GetEntityFromIdBurst(entityId);
 			var hasScript = HasScriptBurst(entity, scriptName);
 			Lua.lua_pushboolean(l, hasScript ? 1 : 0);
-			return 1;
-		}
-
-		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
-		[BurstCompile]
-		static int ECS_DestroyEntity(lua_State l)
-		{
-			var entityId = (int)Lua.lua_tointeger(l, 1);
-			if (entityId <= 0)
-			{
-				Lua.lua_pushboolean(l, 0);
-				return 1;
-			}
-
-			ref var ctx = ref s_burstContext.Data;
-			if (!ctx.isValid)
-			{
-				Lua.lua_pushboolean(l, 0);
-				return 1;
-			}
-
-			// Try to get entity from registry
-			if (!ctx.entityIdMap.TryGetValue(entityId, out var entity) || entity == Entity.Null)
-			{
-				// Check pending entities
-				entity = GetPendingEntity(entityId);
-				if (entity == Entity.Null)
-				{
-					Lua.lua_pushboolean(l, 0);
-					return 1;
-				}
-			}
-
-			// Remove LuaEntityId to trigger staged cleanup
-			ctx.ecb.RemoveComponent<LuaEntityId>(entity);
-
-			Lua.lua_pushboolean(l, 1);
 			return 1;
 		}
 	}
