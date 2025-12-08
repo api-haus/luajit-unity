@@ -1,10 +1,18 @@
 namespace LuaECS.Core
 {
+	using System.Threading;
 	using AOT;
+	using Components;
 	using LuaNET.LuaJIT;
 	using Unity.Burst;
+	using Unity.Entities;
 	using Unity.Mathematics;
+	using Unity.Transforms;
 
+	/// <summary>
+	/// Legacy entity functions for backward compatibility with ecs.* namespace.
+	/// New code should use entities.* namespace from LuaEntitiesBridge.
+	/// </summary>
 	public static partial class LuaECSBridge
 	{
 		internal static void RegisterEntityFunctions(lua_State l)
@@ -36,12 +44,27 @@ namespace LuaECS.Core
 				}
 			}
 
-			var entityId = CreateEntityBurst(position);
-			if (entityId < 0)
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid)
 			{
 				Lua.lua_pushnil(l);
 				return 1;
 			}
+
+			// Allocate new entity ID atomically
+			var entityId = Interlocked.Increment(ref s_nextEntityId.Data);
+
+			// Create entity via ECB with all required components
+			var entity = ctx.ecb.CreateEntity();
+			ctx.ecb.AddComponent(entity, LocalTransform.FromPosition(position));
+			ctx.ecb.AddComponent(entity, new LuaEntityId { value = entityId });
+			ctx.ecb.AddBuffer<LuaScript>(entity);
+			ctx.ecb.AddBuffer<LuaScriptRequest>(entity);
+			ctx.ecb.AddBuffer<LuaEvent>(entity);
+			ctx.ecb.AddBuffer<LuaCommand>(entity);
+
+			// Register in pending map for same-frame script additions
+			AddPendingEntity(entityId, entity);
 
 			Lua.lua_pushinteger(l, entityId);
 			return 1;
@@ -64,8 +87,35 @@ namespace LuaECS.Core
 				return 1;
 			}
 
-			var success = AddScriptBurst(entityId, scriptName);
-			Lua.lua_pushboolean(l, success ? 1 : 0);
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid)
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			// Try to get entity from registry
+			if (!ctx.entityIdMap.TryGetValue(entityId, out var entity) || entity == Entity.Null)
+			{
+				// Check pending entities
+				entity = GetPendingEntity(entityId);
+				if (entity == Entity.Null)
+				{
+					Lua.lua_pushboolean(l, 0);
+					return 1;
+				}
+			}
+
+			// Add script request via ECB
+			var request = new LuaScriptRequest
+			{
+				scriptName = scriptName,
+				requestHash = LuaScriptPathUtility.HashScriptName(scriptName.ToString()),
+				fulfilled = false,
+			};
+			ctx.ecb.AppendToBuffer(entity, request);
+
+			Lua.lua_pushboolean(l, 1);
 			return 1;
 		}
 
@@ -103,7 +153,28 @@ namespace LuaECS.Core
 				return 1;
 			}
 
-			QueueDestructionBurst(entityId);
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid)
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			// Try to get entity from registry
+			if (!ctx.entityIdMap.TryGetValue(entityId, out var entity) || entity == Entity.Null)
+			{
+				// Check pending entities
+				entity = GetPendingEntity(entityId);
+				if (entity == Entity.Null)
+				{
+					Lua.lua_pushboolean(l, 0);
+					return 1;
+				}
+			}
+
+			// Remove LuaEntityId to trigger staged cleanup
+			ctx.ecb.RemoveComponent<LuaEntityId>(entity);
+
 			Lua.lua_pushboolean(l, 1);
 			return 1;
 		}

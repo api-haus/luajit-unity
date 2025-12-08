@@ -54,6 +54,11 @@ namespace LuaECS.Core
 	/// </summary>
 	public unsafe struct BurstBridgeContext
 	{
+		/// <summary>
+		/// Direct ECB for deferred entity operations. Set each frame from EndSimulationEntityCommandBufferSystem.
+		/// </summary>
+		public EntityCommandBuffer ecb;
+
 		[NativeDisableUnsafePtrRestriction]
 		public UnsafeHashMap<int, Entity> entityIdMap;
 
@@ -63,17 +68,10 @@ namespace LuaECS.Core
 		[NativeDisableUnsafePtrRestriction]
 		public BufferLookup<LuaScript> scriptBufferLookup;
 
-		[NativeDisableUnsafePtrRestriction]
-		public UnsafeList<LuaCommand>* pendingCommands;
-
-		[NativeDisableUnsafePtrRestriction]
-		public UnsafeList<int>* pendingDestructions;
-
-		[NativeDisableUnsafePtrRestriction]
-		public UnsafeList<PendingEntityCreation>* pendingCreations;
-
-		[NativeDisableUnsafePtrRestriction]
-		public UnsafeList<PendingScriptAddition>* pendingScripts;
+		/// <summary>
+		/// Delta time for the current frame, used by movement functions.
+		/// </summary>
+		public float deltaTime;
 
 		public bool isValid;
 	}
@@ -91,17 +89,20 @@ namespace LuaECS.Core
 
 		struct EventContextMarker { }
 
+		struct PendingEntitiesMarker { }
+
 		static World s_world;
 		static EntityManager s_entityManager;
-		static LuaScriptingSystem s_scriptingSystem;
 		static EntityQuery s_playerQuery;
 		static bool s_playerQueryInitialized;
-
-		static NativeList<LuaCommand> s_pendingCommands;
-		static NativeList<int> s_pendingDestructions;
-		static NativeList<PendingEntityCreation> s_pendingCreations;
-		static NativeList<PendingScriptAddition> s_pendingScripts;
 		static bool s_initialized;
+
+		/// <summary>
+		/// Tracks entities created in the current frame before ECB playback.
+		/// Maps entityId to deferred Entity handle for same-frame script additions.
+		/// </summary>
+		static readonly SharedStatic<UnsafeHashMap<int, Entity>> s_pendingEntities =
+			SharedStatic<UnsafeHashMap<int, Entity>>.GetOrCreate<PendingEntitiesMarker, UnsafeHashMap<int, Entity>>();
 
 		static readonly SharedStatic<BurstBridgeContext> s_burstContext =
 			SharedStatic<BurstBridgeContext>.GetOrCreate<BurstContextMarker, BurstBridgeContext>();
@@ -120,18 +121,15 @@ namespace LuaECS.Core
 			{
 				s_world = world;
 				s_entityManager = world.EntityManager;
-				s_scriptingSystem = scriptingSystem;
 				return;
 			}
 
 			s_world = world;
 			s_entityManager = world.EntityManager;
-			s_scriptingSystem = scriptingSystem;
-			s_pendingCommands = new NativeList<LuaCommand>(64, Allocator.Persistent);
-			s_pendingDestructions = new NativeList<int>(32, Allocator.Persistent);
-			s_pendingCreations = new NativeList<PendingEntityCreation>(32, Allocator.Persistent);
-			s_pendingScripts = new NativeList<PendingScriptAddition>(32, Allocator.Persistent);
 			s_nextEntityId.Data = 1;
+
+			// Initialize pending entities map for same-frame entity tracking
+			s_pendingEntities.Data = new UnsafeHashMap<int, Entity>(32, Allocator.Persistent);
 
 			s_eventContext.Data = new LuaEventContextData
 			{
@@ -153,17 +151,9 @@ namespace LuaECS.Core
 		{
 			s_burstContext.Data = default;
 
-			if (s_pendingCommands.IsCreated)
-				s_pendingCommands.Dispose();
-
-			if (s_pendingDestructions.IsCreated)
-				s_pendingDestructions.Dispose();
-
-			if (s_pendingCreations.IsCreated)
-				s_pendingCreations.Dispose();
-
-			if (s_pendingScripts.IsCreated)
-				s_pendingScripts.Dispose();
+			// Dispose pending entities map
+			if (s_pendingEntities.Data.IsCreated)
+				s_pendingEntities.Data.Dispose();
 
 			ref var eventCtx = ref s_eventContext.Data;
 			if (eventCtx.isValid)
@@ -187,7 +177,6 @@ namespace LuaECS.Core
 
 			s_world = null;
 			s_entityManager = default;
-			s_scriptingSystem = null;
 			s_initialized = false;
 		}
 
@@ -195,7 +184,13 @@ namespace LuaECS.Core
 		/// Updates the Burst-compatible context with current frame data.
 		/// Call before executing Lua scripts each frame.
 		/// </summary>
+		/// <param name="ecb">ECB from EndSimulationEntityCommandBufferSystem for deferred operations</param>
+		/// <param name="deltaTime">Delta time for the current frame</param>
+		/// <param name="transformLookup">Transform component lookup</param>
+		/// <param name="scriptBufferLookup">Script buffer lookup</param>
 		public static void UpdateBurstContext(
+			EntityCommandBuffer ecb,
+			float deltaTime,
 			ComponentLookup<LocalTransform> transformLookup,
 			BufferLookup<LuaScript> scriptBufferLookup
 		)
@@ -212,32 +207,56 @@ namespace LuaECS.Core
 				return;
 			}
 
-			unsafe
+			// Clear pending entities from previous frame
+			if (s_pendingEntities.Data.IsCreated)
+				s_pendingEntities.Data.Clear();
+
+			s_burstContext.Data = new BurstBridgeContext
 			{
-				s_burstContext.Data = new BurstBridgeContext
-				{
-					entityIdMap = LuaEntityRegistry.EntityIdMap,
-					transformLookup = transformLookup,
-					scriptBufferLookup = scriptBufferLookup,
-					pendingCommands = s_pendingCommands.GetUnsafeList(),
-					pendingDestructions = s_pendingDestructions.GetUnsafeList(),
-					pendingCreations = s_pendingCreations.GetUnsafeList(),
-					pendingScripts = s_pendingScripts.GetUnsafeList(),
-					isValid = true,
-				};
-			}
+				ecb = ecb,
+				deltaTime = deltaTime,
+				entityIdMap = LuaEntityRegistry.EntityIdMap,
+				transformLookup = transformLookup,
+				scriptBufferLookup = scriptBufferLookup,
+				isValid = true,
+			};
+		}
+
+		/// <summary>
+		/// Adds an entity to the pending map for same-frame tracking.
+		/// Called when creating entities via ECB.
+		/// </summary>
+		internal static void AddPendingEntity(int entityId, Entity entity)
+		{
+			if (s_pendingEntities.Data.IsCreated)
+				s_pendingEntities.Data.TryAdd(entityId, entity);
+		}
+
+		/// <summary>
+		/// Gets a pending entity by ID (for same-frame operations before ECB playback).
+		/// </summary>
+		internal static Entity GetPendingEntity(int entityId)
+		{
+			if (s_pendingEntities.Data.IsCreated && s_pendingEntities.Data.TryGetValue(entityId, out var entity))
+				return entity;
+			return Entity.Null;
 		}
 
 		public static void RegisterFunctions(lua_State l)
 		{
-			Lua.lua_newtable(l);
+			// New domain-oriented namespaces
+			RegisterEntitiesFunctions(l); // entities.*
+			RegisterTransformNamespace(l); // transform.*
+			RegisterSpatialNamespace(l); // spatial.*
+			RegisterEventsFunctions(l); // events.*
 
+			// Legacy ecs.* table for backward compatibility
+			Lua.lua_newtable(l);
 			RegisterTransformFunctions(l);
 			RegisterSpatialFunctions(l);
 			RegisterEntityFunctions(l);
-			RegisterCommandFunctions(l);
 			RegisterLogFunctions(l);
-
+			// Note: RegisterCommandFunctions removed - use transform.move_toward(), entities.destroy(), events.send_attack()
 			Lua.lua_setglobal(l, "ecs");
 
 			InitializeGlobalLog(l);
@@ -252,24 +271,6 @@ namespace LuaECS.Core
 		{
 			Lua.lua_pushcfunction(l, func);
 			Lua.lua_setfield(l, -2, name);
-		}
-
-		public static NativeList<LuaCommand> FlushCommands()
-		{
-			if (!s_initialized || !s_pendingCommands.IsCreated)
-			{
-				return new NativeList<LuaCommand>(0, Allocator.Temp);
-			}
-
-			var commands = new NativeList<LuaCommand>(s_pendingCommands.Length, Allocator.Temp);
-			commands.CopyFrom(s_pendingCommands);
-			s_pendingCommands.Clear();
-			return commands;
-		}
-
-		static Entity GetEntityFromId(int entityId)
-		{
-			return LuaEntityRegistry.GetEntityFromId(entityId);
 		}
 
 		static float3 TableToFloat3(lua_State l, int index)
@@ -367,81 +368,12 @@ namespace LuaECS.Core
 		}
 
 		/// <summary>
-		/// Burst-compatible command queue addition.
-		/// </summary>
-		internal static unsafe void AddCommandBurst(LuaCommand command)
-		{
-			ref var ctx = ref s_burstContext.Data;
-			if (!ctx.isValid || ctx.pendingCommands == null)
-				return;
-
-			ctx.pendingCommands->Add(command);
-		}
-
-		/// <summary>
-		/// Burst-compatible entity destruction queue addition.
-		/// </summary>
-		internal static unsafe void QueueDestructionBurst(int entityId)
-		{
-			ref var ctx = ref s_burstContext.Data;
-			if (!ctx.isValid || ctx.pendingDestructions == null || entityId <= 0)
-				return;
-
-			ctx.pendingDestructions->Add(entityId);
-		}
-
-		/// <summary>
-		/// Flushes pending destructions and returns them.
-		/// Call from managed system after script execution.
-		/// </summary>
-		public static NativeList<int> FlushDestructions()
-		{
-			if (!s_initialized || !s_pendingDestructions.IsCreated)
-				return new NativeList<int>(0, Allocator.Temp);
-
-			var destructions = new NativeList<int>(s_pendingDestructions.Length, Allocator.Temp);
-			destructions.CopyFrom(s_pendingDestructions);
-			s_pendingDestructions.Clear();
-			return destructions;
-		}
-
-		/// <summary>
-		/// Burst-compatible entity creation. Returns new entity ID atomically.
-		/// </summary>
-		internal static unsafe int CreateEntityBurst(float3 position)
-		{
-			ref var ctx = ref s_burstContext.Data;
-			if (!ctx.isValid || ctx.pendingCreations == null)
-				return -1;
-
-			var entityId = Interlocked.Increment(ref s_nextEntityId.Data);
-			ctx.pendingCreations->Add(
-				new PendingEntityCreation { entityId = entityId, position = position }
-			);
-			return entityId;
-		}
-
-		/// <summary>
-		/// Allocate a new entity ID atomically (for non-deferred entity creation).
+		/// Allocate a new entity ID atomically.
+		/// Used for synchronous entity creation (e.g., character.create).
 		/// </summary>
 		internal static int AllocateEntityId()
 		{
 			return Interlocked.Increment(ref s_nextEntityId.Data);
-		}
-
-		/// <summary>
-		/// Burst-compatible script addition. Returns false if context invalid.
-		/// </summary>
-		internal static unsafe bool AddScriptBurst(int entityId, FixedString64Bytes scriptName)
-		{
-			ref var ctx = ref s_burstContext.Data;
-			if (!ctx.isValid || ctx.pendingScripts == null || entityId <= 0)
-				return false;
-
-			ctx.pendingScripts->Add(
-				new PendingScriptAddition { entityId = entityId, scriptName = scriptName }
-			);
-			return true;
 		}
 
 		/// <summary>
@@ -464,37 +396,6 @@ namespace LuaECS.Core
 			}
 
 			return false;
-		}
-
-		/// <summary>
-		/// Flushes pending entity creations.
-		/// </summary>
-		public static NativeList<PendingEntityCreation> FlushCreations()
-		{
-			if (!s_initialized || !s_pendingCreations.IsCreated)
-				return new NativeList<PendingEntityCreation>(0, Allocator.Temp);
-
-			var creations = new NativeList<PendingEntityCreation>(
-				s_pendingCreations.Length,
-				Allocator.Temp
-			);
-			creations.CopyFrom(s_pendingCreations);
-			s_pendingCreations.Clear();
-			return creations;
-		}
-
-		/// <summary>
-		/// Flushes pending script additions.
-		/// </summary>
-		public static NativeList<PendingScriptAddition> FlushScriptAdditions()
-		{
-			if (!s_initialized || !s_pendingScripts.IsCreated)
-				return new NativeList<PendingScriptAddition>(0, Allocator.Temp);
-
-			var scripts = new NativeList<PendingScriptAddition>(s_pendingScripts.Length, Allocator.Temp);
-			scripts.CopyFrom(s_pendingScripts);
-			s_pendingScripts.Clear();
-			return scripts;
 		}
 
 		/// <summary>

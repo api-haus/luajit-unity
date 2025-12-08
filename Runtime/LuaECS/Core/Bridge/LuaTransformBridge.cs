@@ -21,12 +21,91 @@ namespace LuaECS.Core
 			public bool initialized;
 		}
 
+		/// <summary>
+		/// Registers new domain-oriented transform.* namespace
+		/// </summary>
+		internal static void RegisterTransformNamespace(lua_State l)
+		{
+			InitializeFieldNames();
+			Lua.lua_newtable(l);
+
+			RegisterFunction(l, "get_position", ECS_GetPosition);
+			RegisterFunction(l, "set_position", ECS_SetPosition);
+			RegisterFunction(l, "get_rotation", ECS_GetRotation);
+			RegisterFunction(l, "move_toward", Transform_MoveToward);
+
+			Lua.lua_setglobal(l, "transform");
+		}
+
+		/// <summary>
+		/// Legacy registration for ecs.* table (backward compatibility)
+		/// </summary>
 		internal static void RegisterTransformFunctions(lua_State l)
 		{
 			InitializeFieldNames();
 			RegisterFunction(l, "get_position", ECS_GetPosition);
 			RegisterFunction(l, "set_position", ECS_SetPosition);
 			RegisterFunction(l, "get_rotation", ECS_GetRotation);
+		}
+
+		/// <summary>
+		/// Move entity toward target position at given speed.
+		/// Uses delta time from context for frame-rate independent movement.
+		/// </summary>
+		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
+		[BurstCompile]
+		static int Transform_MoveToward(lua_State l)
+		{
+			var entityId = (int)Lua.lua_tointeger(l, 1);
+			var entity = GetEntityFromIdBurst(entityId);
+
+			if (!TryGetTransformBurst(entity, out var transform))
+				return 0;
+
+			float3 targetPos;
+			if (Lua.lua_istable(l, 2) != 0)
+			{
+				targetPos = TableToFloat3Burst(l, 2);
+			}
+			else if (Lua.lua_isnumber(l, 2) != 0)
+			{
+				var targetId = (int)Lua.lua_tointeger(l, 2);
+				var targetEntity = GetEntityFromIdBurst(targetId);
+
+				if (!TryGetTransformBurst(targetEntity, out var targetTransform))
+					return 0;
+
+				targetPos = targetTransform.Position;
+			}
+			else
+			{
+				return 0;
+			}
+
+			var speed = (float)Lua.lua_tonumber(l, 3);
+
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid)
+				return 0;
+
+			// Calculate movement using delta time
+			var direction = targetPos - transform.Position;
+			var distance = math.length(direction);
+
+			if (distance > 0.01f)
+			{
+				var normalizedDir = direction / distance;
+				var moveDistance = math.min(speed * ctx.deltaTime, distance);
+				transform.Position += normalizedDir * moveDistance;
+
+				// Face movement direction
+				var targetRot = quaternion.LookRotationSafe(normalizedDir, math.up());
+				transform.Rotation = math.slerp(transform.Rotation, targetRot, ctx.deltaTime * 10f);
+
+				TrySetTransformBurst(entity, transform);
+			}
+
+			return 0;
 		}
 
 		static void InitializeFieldNames()

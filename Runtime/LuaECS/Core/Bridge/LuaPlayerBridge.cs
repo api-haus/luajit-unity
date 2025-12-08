@@ -160,8 +160,23 @@ namespace LuaECS.Core
 				return 1;
 			}
 
-			var success = AddScriptBurst(entityId, scriptName);
-			Lua.lua_pushboolean(l, success ? 1 : 0);
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid)
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			// Add script request via ECB
+			var request = new LuaScriptRequest
+			{
+				scriptName = scriptName,
+				requestHash = LuaScriptPathUtility.HashScriptName(scriptName.ToString()),
+				fulfilled = false,
+			};
+			ctx.ecb.AppendToBuffer(entity, request);
+
+			Lua.lua_pushboolean(l, 1);
 			return 1;
 		}
 

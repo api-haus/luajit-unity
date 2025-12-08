@@ -31,9 +31,8 @@ namespace LuaECS.Authoring
 
 				var hasValidScript = false;
 
-				for (var i = 0; i < m_Scripts.Count; i++)
+				foreach (var script in m_Scripts)
 				{
-					var script = m_Scripts[i];
 					DependsOn(script);
 
 					if (!hasValidScript && script != null && script.script.IsValid)
@@ -49,9 +48,8 @@ namespace LuaECS.Authoring
 				var entity = GetEntity(TransformUsageFlags.Dynamic);
 				var requestsBuffer = AddBuffer<LuaScriptRequest>(entity);
 
-				for (var i = 0; i < m_Scripts.Count; i++)
+				foreach (var scriptAuthor in m_Scripts)
 				{
-					var scriptAuthor = m_Scripts[i];
 					if (scriptAuthor == null || !scriptAuthor.script.IsValid)
 						continue;
 

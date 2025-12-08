@@ -18,28 +18,15 @@ namespace LuaECS.Systems
 	public struct LuaScriptingSystemSingleton : IComponentData { }
 
 	/// <summary>
-	/// ECB system for deferred Lua entity operations.
-	/// Plays back at end of SimulationSystemGroup.
-	/// </summary>
-	[UpdateInGroup(typeof(SimulationSystemGroup), OrderLast = true)]
-	public partial class LuaEntityCommandBufferSystem : EntityCommandBufferSystem
-	{
-		protected override void OnCreate()
-		{
-			base.OnCreate();
-		}
-	}
-
-	/// <summary>
 	/// Orchestrates Lua script runtime: updates and events.
 	/// Script initialization is handled by LuaScriptFulfillmentSystem in InitializationSystemGroup.
+	/// Uses EndSimulationEntityCommandBufferSystem for deferred operations.
 	/// </summary>
 	[UpdateInGroup(typeof(SimulationSystemGroup))]
-	[UpdateBefore(typeof(LuaEntityCommandBufferSystem))]
+	[UpdateBefore(typeof(EndSimulationEntityCommandBufferSystem))]
 	public partial class LuaScriptingSystem : SystemBase
 	{
 		LuaVMManager m_Vm;
-		LuaEntityCommandBufferSystem m_ECBSystem;
 		LuaScriptFulfillmentSystem m_FulfillmentSystem;
 
 		EntityCommandBuffer m_CurrentECB;
@@ -66,7 +53,6 @@ namespace LuaECS.Systems
 
 		protected override void OnCreate()
 		{
-			m_ECBSystem = World.GetOrCreateSystemManaged<LuaEntityCommandBufferSystem>();
 			m_FulfillmentSystem = World.GetOrCreateSystemManaged<LuaScriptFulfillmentSystem>();
 
 			m_EventQuery = GetEntityQuery(
@@ -111,8 +97,16 @@ namespace LuaECS.Systems
 
 			s_frameCount++;
 
-			m_CurrentECB = m_ECBSystem.CreateCommandBuffer();
+			// Get ECB from Unity's EndSimulationEntityCommandBufferSystem
+			var ecbSingleton = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
+			m_CurrentECB = ecbSingleton.CreateCommandBuffer(World.Unmanaged);
 			m_ECBValid = true;
+
+			var deltaTime = SystemAPI.Time.DeltaTime;
+
+			// Complete any outstanding jobs reading/writing LocalTransform (e.g., physics)
+			// before we allow Lua scripts to modify transforms directly
+			EntityManager.CompleteDependencyBeforeRW<LocalTransform>();
 
 			m_TransformLookup.Update(this);
 			m_ScriptBufferLookup.Update(this);
@@ -120,7 +114,8 @@ namespace LuaECS.Systems
 			m_CharacterBodyLookup.Update(this);
 			m_PhysicsVelocityLookup.Update(this);
 
-			LuaECSBridge.UpdateBurstContext(m_TransformLookup, m_ScriptBufferLookup);
+			// Pass ECB and deltaTime to context for direct use by bridge functions
+			LuaECSBridge.UpdateBurstContext(m_CurrentECB, deltaTime, m_TransformLookup, m_ScriptBufferLookup);
 			LuaECSBridge.UpdateCharacterContext(
 				m_CharacterControlLookup,
 				m_CharacterBodyLookup,
@@ -129,38 +124,9 @@ namespace LuaECS.Systems
 
 			UpdateScriptedEntities();
 			DispatchEvents();
-			ProcessPendingOperations();
+			// Note: ProcessPendingOperations removed - bridge functions now write directly to ECB
 
 			m_ECBValid = false;
-		}
-
-		void ProcessPendingOperations()
-		{
-			var creations = LuaECSBridge.FlushCreations();
-			for (var i = 0; i < creations.Length; i++)
-			{
-				var creation = creations[i];
-				LuaEntityRegistry.CreateWithId(creation.entityId, creation.position, m_CurrentECB);
-			}
-			creations.Dispose();
-
-			var scripts = LuaECSBridge.FlushScriptAdditions();
-			for (var i = 0; i < scripts.Length; i++)
-			{
-				var script = scripts[i];
-				LuaEntityRegistry.AddScriptDeferred(
-					script.entityId,
-					script.scriptName.ToString(),
-					m_CurrentECB,
-					EntityManager
-				);
-			}
-			scripts.Dispose();
-
-			var destructions = LuaECSBridge.FlushDestructions();
-			for (var i = 0; i < destructions.Length; i++)
-				LuaEntityRegistry.DestroyEntityDeferred(destructions[i], m_CurrentECB);
-			destructions.Dispose();
 		}
 
 		void UpdateScriptedEntities()

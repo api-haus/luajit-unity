@@ -11,6 +11,23 @@ namespace LuaECS.Core
 
 	public static partial class LuaECSBridge
 	{
+		/// <summary>
+		/// Registers new domain-oriented spatial.* namespace
+		/// </summary>
+		internal static void RegisterSpatialNamespace(lua_State l)
+		{
+			Lua.lua_newtable(l);
+
+			RegisterFunction(l, "distance", ECS_Distance);
+			RegisterFunction(l, "query_near", ECS_QueryEntitiesNear);
+			RegisterFunction(l, "get_entity_count", ECS_GetEntityCount);
+
+			Lua.lua_setglobal(l, "spatial");
+		}
+
+		/// <summary>
+		/// Legacy registration for ecs.* table (backward compatibility)
+		/// </summary>
 		internal static void RegisterSpatialFunctions(lua_State l)
 		{
 			RegisterFunction(l, "distance", ECS_Distance);
