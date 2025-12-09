@@ -17,11 +17,13 @@ namespace LuaGame.Systems
 	public partial class LuaHealthSystem : SystemBase
 	{
 		ComponentLookup<LuaHealth> m_HealthLookup;
+		EndSimulationEntityCommandBufferSystem m_ECBSystem;
 		bool m_BridgeRegistered;
 
 		protected override void OnCreate()
 		{
 			m_HealthLookup = GetComponentLookup<LuaHealth>();
+			m_ECBSystem = World.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>();
 		}
 
 		protected override void OnStartRunning()
@@ -40,7 +42,8 @@ namespace LuaGame.Systems
 		protected override void OnUpdate()
 		{
 			m_HealthLookup.Update(this);
-			LuaHealthBridge.UpdateContext(m_HealthLookup);
+			var ecb = m_ECBSystem.CreateCommandBuffer();
+			LuaHealthBridge.UpdateContext(m_HealthLookup, ecb);
 
 			foreach (
 				var (health, events, entity) in SystemAPI

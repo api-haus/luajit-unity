@@ -2,7 +2,7 @@ namespace LuaGame.Bridge
 {
 	using AOT;
 	using LuaECS.Core;
-	using Components;
+	using LuaGame.Components;
 	using LuaNET.LuaJIT;
 	using Unity.Burst;
 	using Unity.Collections.LowLevel.Unsafe;
@@ -12,7 +12,6 @@ namespace LuaGame.Bridge
 	/// Lua bridge for health system functions.
 	/// Provides health.get, health.set, health.damage, health.is_dead
 	/// </summary>
-	[BurstCompile]
 	public static class LuaHealthBridge
 	{
 		public struct HealthBridgeContext
@@ -20,6 +19,7 @@ namespace LuaGame.Bridge
 			[NativeDisableUnsafePtrRestriction]
 			public ComponentLookup<LuaHealth> healthLookup;
 
+			public EntityCommandBuffer ecb;
 			public bool isValid;
 		}
 
@@ -28,9 +28,14 @@ namespace LuaGame.Bridge
 		static readonly SharedStatic<HealthBridgeContext> s_context =
 			SharedStatic<HealthBridgeContext>.GetOrCreate<HealthContextMarker, HealthBridgeContext>();
 
-		public static void UpdateContext(ComponentLookup<LuaHealth> healthLookup)
+		public static void UpdateContext(ComponentLookup<LuaHealth> healthLookup, EntityCommandBuffer ecb)
 		{
-			s_context.Data = new HealthBridgeContext { healthLookup = healthLookup, isValid = true };
+			s_context.Data = new HealthBridgeContext
+			{
+				healthLookup = healthLookup,
+				ecb = ecb,
+				isValid = true,
+			};
 		}
 
 		public static void ClearContext()
@@ -41,6 +46,9 @@ namespace LuaGame.Bridge
 		public static void RegisterFunctions(lua_State l)
 		{
 			Lua.lua_newtable(l);
+
+			Lua.lua_pushcfunction(l, Health_Add);
+			Lua.lua_setfield(l, -2, "add");
 
 			Lua.lua_pushcfunction(l, Health_Get);
 			Lua.lua_setfield(l, -2, "get");
@@ -58,6 +66,49 @@ namespace LuaGame.Bridge
 			Lua.lua_setfield(l, -2, "heal");
 
 			Lua.lua_setglobal(l, "health");
+		}
+
+		/// <summary>
+		/// health.add(entityId, maxHealth)
+		/// Adds health component and damageable tag to entity.
+		/// Makes the entity participate in damage zone interactions.
+		/// </summary>
+		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
+		static int Health_Add(lua_State l)
+		{
+			var entityId = (int)Lua.lua_tointeger(l, 1);
+			var entity = LuaECSBridge.GetEntityFromIdBurst(entityId);
+
+			if (entity == Entity.Null)
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			ref var ctx = ref s_context.Data;
+			if (!ctx.isValid)
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			// Don't add if already has health
+			if (ctx.healthLookup.HasComponent(entity))
+			{
+				Lua.lua_pushboolean(l, 1);
+				return 1;
+			}
+
+			var maxHealth = (float)Lua.lua_tonumber(l, 2);
+			if (maxHealth <= 0)
+				maxHealth = 100f;
+
+			// Add health component and damageable tag
+			ctx.ecb.AddComponent(entity, LuaHealth.Create(maxHealth));
+			ctx.ecb.AddComponent(entity, new LuaDamageableTag());
+
+			Lua.lua_pushboolean(l, 1);
+			return 1;
 		}
 
 		/// <summary>
