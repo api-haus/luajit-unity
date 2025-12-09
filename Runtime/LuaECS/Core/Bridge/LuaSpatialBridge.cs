@@ -25,16 +25,6 @@ namespace LuaECS.Core
 			Lua.lua_setglobal(l, "spatial");
 		}
 
-		/// <summary>
-		/// Legacy registration for ecs.* table (backward compatibility)
-		/// </summary>
-		internal static void RegisterSpatialFunctions(lua_State l)
-		{
-			RegisterFunction(l, "distance", ECS_Distance);
-			RegisterFunction(l, "query_entities_near", ECS_QueryEntitiesNear);
-			RegisterFunction(l, "get_entity_count", ECS_GetEntityCount);
-		}
-
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
 		[BurstCompile]
 		static int ECS_Distance(lua_State l)

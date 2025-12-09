@@ -49,8 +49,8 @@ namespace LuaECS.Core
 			s_characterContext.Data = new CharacterBridgeContext
 			{
 				characterControlLookup = controlLookup,
-				characterBodyLookup = bodyLookup,
 				physicsVelocityLookup = velocityLookup,
+				characterBodyLookup = bodyLookup,
 				isValid = true,
 			};
 		}

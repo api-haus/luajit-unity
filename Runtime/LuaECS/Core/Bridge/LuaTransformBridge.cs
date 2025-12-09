@@ -38,17 +38,6 @@ namespace LuaECS.Core
 		}
 
 		/// <summary>
-		/// Legacy registration for ecs.* table (backward compatibility)
-		/// </summary>
-		internal static void RegisterTransformFunctions(lua_State l)
-		{
-			InitializeFieldNames();
-			RegisterFunction(l, "get_position", ECS_GetPosition);
-			RegisterFunction(l, "set_position", ECS_SetPosition);
-			RegisterFunction(l, "get_rotation", ECS_GetRotation);
-		}
-
-		/// <summary>
 		/// Move entity toward target position at given speed.
 		/// Uses delta time from context for frame-rate independent movement.
 		/// </summary>

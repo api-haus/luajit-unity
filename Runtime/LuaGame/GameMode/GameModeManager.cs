@@ -8,8 +8,10 @@ namespace LuaGame.GameMode
 	using LuaECS.Systems;
 	using LuaECS.Systems.Support;
 	using LuaVM.Core;
+	using Unity.Collections;
 	using Unity.Entities;
 	using Unity.Logging;
+	using Unity.Transforms;
 
 	/// <summary>
 	/// Manages game mode lifecycle: loading, transitions, world ownership.
@@ -62,8 +64,14 @@ namespace LuaGame.GameMode
 				return;
 
 			var vm = LuaVMManager.GetOrCreate();
+
+			// Register ECS bridge first - needed for ecs.create_entity(), ecs.add_script(), etc.
+			vm.RegisterBridgeNow(LuaECSBridge.RegisterFunctions);
+
+			// Register game mode bridge
 			vm.RegisterBridgeNow(LuaGameModeBridge.RegisterFunctions);
 			LuaGameModeBridge.SetManager(this);
+
 			m_BridgeRegistered = true;
 		}
 
@@ -126,8 +134,15 @@ namespace LuaGame.GameMode
 				progress?.Report(0.6f);
 
 				// Phase 4: Wait for systems to initialize and run OnInit (60-80%)
+				// Prime the burst context with an ECB so OnInit can create entities
+				PrimeBurstContext();
+
 				// First update triggers LuaScriptFulfillmentSystem to process the script request
 				CurrentWorld.Update();
+
+				// Play back entities created during OnInit
+				PlaybackOnInitEntities();
+
 				LoadingProgress = 0.8f;
 				progress?.Report(0.8f);
 
@@ -226,13 +241,18 @@ namespace LuaGame.GameMode
 
 			// SimulationSystemGroup systems
 			var simGroup = world.GetExistingSystemManaged<SimulationSystemGroup>();
-			simGroup.AddSystemToUpdateList(world.CreateSystemManaged<LuaScriptingSystem>());
+			var scriptingSystem = world.CreateSystemManaged<LuaScriptingSystem>();
+			simGroup.AddSystemToUpdateList(scriptingSystem);
 
 			// EndSimulationEntityCommandBufferSystem is needed for deferred operations
 			simGroup.AddSystemToUpdateList(world.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>());
 
 			initGroup.SortSystems();
 			simGroup.SortSystems();
+
+			// Initialize ECS bridge with this world BEFORE any scripts run
+			// This ensures ecs.create_entity() etc. work during OnInit callbacks
+			LuaECSBridge.Initialize(world, scriptingSystem);
 
 			return world;
 		}
@@ -254,7 +274,35 @@ namespace LuaGame.GameMode
 			// Add event buffer
 			entityManager.AddBuffer<LuaEvent>(entity);
 
+			// Add LuaEntityId with sentinel value (0) - fulfillment system will assign real ID
+			entityManager.AddComponentData(entity, new LuaEntityId { value = 0 });
+
 			return entity;
+		}
+
+		/// <summary>
+		/// Primes the burst context with an ECB before the first world update.
+		/// This allows OnInit callbacks to create entities via ecs.create_entity().
+		/// </summary>
+		void PrimeBurstContext()
+		{
+			if (CurrentWorld == null)
+				return;
+
+			var scriptingSystem = CurrentWorld.GetExistingSystemManaged<LuaScriptingSystem>();
+			scriptingSystem?.PrimeBurstContextForOnInit();
+		}
+
+		/// <summary>
+		/// Plays back entities created during OnInit.
+		/// </summary>
+		void PlaybackOnInitEntities()
+		{
+			if (CurrentWorld == null)
+				return;
+
+			var scriptingSystem = CurrentWorld.GetExistingSystemManaged<LuaScriptingSystem>();
+			scriptingSystem?.PlaybackPrimedECB();
 		}
 
 		void CallOnLoad()

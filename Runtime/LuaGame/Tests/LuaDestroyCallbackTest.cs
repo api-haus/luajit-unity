@@ -4,7 +4,7 @@ namespace LuaGame.Tests
 	using LuaECS.Components;
 	using LuaECS.Core;
 	using LuaECS.Systems.Support;
-	using LuaVM.Core;
+	using LuaECS.Tests;
 	using NUnit.Framework;
 	using Unity.Entities;
 	using Unity.Transforms;
@@ -32,7 +32,7 @@ namespace LuaGame.Tests
 			else
 				LuaEntityRegistry.Clear();
 
-			LuaVMManager.GetOrCreate();
+			LuaTestUtilities.GetOrCreateTestVM();
 			m_CleanupSystem = m_World.GetOrCreateSystemManaged<LuaScriptCleanupSystem>();
 			yield return null;
 		}

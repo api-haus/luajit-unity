@@ -32,6 +32,9 @@ namespace LuaECS.Systems
 		EntityCommandBuffer m_CurrentECB;
 		bool m_ECBValid;
 
+		EntityCommandBuffer m_PrimedECB;
+		bool m_PrimedECBValid;
+
 		ComponentLookup<LocalTransform> m_TransformLookup;
 		BufferLookup<LuaScript> m_ScriptBufferLookup;
 
@@ -44,7 +47,8 @@ namespace LuaECS.Systems
 			int scriptIndex,
 			string scriptName,
 			int entityIndex,
-			int stateRef
+			int stateRef,
+			LuaTickGroup tickGroup
 		)> m_PendingUpdates;
 
 		EntityQuery m_EventQuery;
@@ -61,7 +65,7 @@ namespace LuaECS.Systems
 				ComponentType.ReadOnly<LuaEntityId>()
 			);
 
-			m_PendingUpdates = new List<(Entity, int, string, int, int)>(256);
+			m_PendingUpdates = new List<(Entity, int, string, int, int, LuaTickGroup)>(256);
 			m_TransformLookup = GetComponentLookup<LocalTransform>();
 			m_ScriptBufferLookup = GetBufferLookup<LuaScript>(true);
 
@@ -90,6 +94,36 @@ namespace LuaECS.Systems
 			m_Vm = null;
 		}
 
+		/// <summary>
+		/// Primes the burst context with an ECB for OnInit entity creation.
+		/// Call before the first world update to enable ecs.create_entity() during OnInit.
+		/// </summary>
+		public void PrimeBurstContextForOnInit()
+		{
+			// Create a persistent ECB that will be played back after the world update
+			m_PrimedECB = new EntityCommandBuffer(Unity.Collections.Allocator.TempJob);
+			m_PrimedECBValid = true;
+
+			m_TransformLookup.Update(this);
+			m_ScriptBufferLookup.Update(this);
+
+			LuaECSBridge.UpdateBurstContext(m_PrimedECB, 0f, m_TransformLookup, m_ScriptBufferLookup);
+		}
+
+		/// <summary>
+		/// Plays back the primed ECB after OnInit has completed.
+		/// Call after the first world update to apply entity creations from OnInit.
+		/// </summary>
+		public void PlaybackPrimedECB()
+		{
+			if (m_PrimedECBValid && m_PrimedECB.IsCreated)
+			{
+				m_PrimedECB.Playback(EntityManager);
+				m_PrimedECB.Dispose();
+				m_PrimedECBValid = false;
+			}
+		}
+
 		protected override void OnUpdate()
 		{
 			if (m_Vm == null || !m_Vm.IsValid)
@@ -102,7 +136,10 @@ namespace LuaECS.Systems
 			m_CurrentECB = ecbSingleton.CreateCommandBuffer(World.Unmanaged);
 			m_ECBValid = true;
 
+			// Use SystemAPI.Time for default worlds, fall back to Unity time for custom worlds
 			var deltaTime = SystemAPI.Time.DeltaTime;
+			if (deltaTime <= 0f)
+				deltaTime = UnityEngine.Time.deltaTime;
 
 			// Complete any outstanding jobs reading/writing LocalTransform (e.g., physics)
 			// before we allow Lua scripts to modify transforms directly
@@ -122,16 +159,15 @@ namespace LuaECS.Systems
 				m_PhysicsVelocityLookup
 			);
 
-			UpdateScriptedEntities();
+			UpdateScriptedEntities(deltaTime);
 			DispatchEvents();
 			// Note: ProcessPendingOperations removed - bridge functions now write directly to ECB
 
 			m_ECBValid = false;
 		}
 
-		void UpdateScriptedEntities()
+		void UpdateScriptedEntities(float deltaTime)
 		{
-			var deltaTime = SystemAPI.Time.DeltaTime;
 			m_PendingUpdates.Clear();
 
 			foreach (
@@ -144,16 +180,17 @@ namespace LuaECS.Systems
 				for (var i = 0; i < scripts.Length; i++)
 				{
 					var script = scripts[i];
-					if (script.stateRef >= 0 && !script.disabled)
+					// Only process Variable tick group scripts in this system
+					if (script.stateRef >= 0 && !script.disabled && script.tickGroup == LuaTickGroup.Variable)
 					{
 						m_PendingUpdates.Add(
-							(entity, i, script.scriptName.ToString(), script.entityIndex, script.stateRef)
+							(entity, i, script.scriptName.ToString(), script.entityIndex, script.stateRef, script.tickGroup)
 						);
 					}
 				}
 			}
 
-			foreach (var (entity, scriptIndex, scriptName, entityIndex, stateRef) in m_PendingUpdates)
+			foreach (var (entity, scriptIndex, scriptName, entityIndex, stateRef, tickGroup) in m_PendingUpdates)
 			{
 				if (!EntityManager.Exists(entity))
 				{
@@ -188,7 +225,7 @@ namespace LuaECS.Systems
 					continue;
 				}
 
-				m_Vm.CallUpdate(scriptName, entityIndex, stateRef, deltaTime);
+				m_Vm.CallTick(scriptName, entityIndex, stateRef, deltaTime);
 			}
 		}
 

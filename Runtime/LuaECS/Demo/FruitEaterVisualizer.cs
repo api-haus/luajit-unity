@@ -14,6 +14,17 @@ namespace LuaECS.Tests
 		Material m_AgentMat;
 		Material m_FruitMat;
 
+		/// <summary>
+		/// The world to visualize. If null, uses DefaultGameObjectInjectionWorld.
+		/// </summary>
+		public World TargetWorld { get; set; }
+
+		/// <summary>
+		/// When true, queries by script name instead of tag components.
+		/// Use this for entities created via Lua that don't have AgentTag/FruitTag.
+		/// </summary>
+		public bool QueryByScriptName { get; set; }
+
 		void Start()
 		{
 			var shader = Shader.Find("Universal Render Pipeline/Lit");
@@ -37,12 +48,24 @@ namespace LuaECS.Tests
 
 		void Update()
 		{
-			var world = World.DefaultGameObjectInjectionWorld;
+			var world = TargetWorld ?? World.DefaultGameObjectInjectionWorld;
 			if (world == null || !world.IsCreated)
 				return;
 
 			var em = world.EntityManager;
 
+			if (QueryByScriptName)
+			{
+				UpdateByScriptName(em);
+			}
+			else
+			{
+				UpdateByTag(em);
+			}
+		}
+
+		void UpdateByTag(EntityManager em)
+		{
 			var agentQuery = em.CreateEntityQuery(
 				ComponentType.ReadOnly<LocalTransform>(),
 				ComponentType.ReadOnly<AgentTag>()
@@ -61,6 +84,47 @@ namespace LuaECS.Tests
 
 			agentTransforms.Dispose();
 			fruitTransforms.Dispose();
+		}
+
+		void UpdateByScriptName(EntityManager em)
+		{
+			using var scriptQuery = em.CreateEntityQuery(
+				ComponentType.ReadOnly<LocalTransform>(),
+				ComponentType.ReadOnly<LuaScript>()
+			);
+
+			var entities = scriptQuery.ToEntityArray(Allocator.Temp);
+			var transforms = scriptQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+
+			var agentTransforms = new NativeList<LocalTransform>(entities.Length, Allocator.Temp);
+			var fruitTransforms = new NativeList<LocalTransform>(entities.Length, Allocator.Temp);
+
+			for (var i = 0; i < entities.Length; i++)
+			{
+				var scripts = em.GetBuffer<LuaScript>(entities[i]);
+				for (var j = 0; j < scripts.Length; j++)
+				{
+					var scriptName = scripts[j].scriptName.ToString();
+					if (scriptName == "fruit_eater")
+					{
+						agentTransforms.Add(transforms[i]);
+						break;
+					}
+					if (scriptName == "fruit")
+					{
+						fruitTransforms.Add(transforms[i]);
+						break;
+					}
+				}
+			}
+
+			SyncVisuals(m_AgentVisuals, agentTransforms.AsArray(), m_AgentMat, 0.5f);
+			SyncVisuals(m_FruitVisuals, fruitTransforms.AsArray(), m_FruitMat, 0.35f);
+
+			agentTransforms.Dispose();
+			fruitTransforms.Dispose();
+			entities.Dispose();
+			transforms.Dispose();
 		}
 
 		void SyncVisuals(

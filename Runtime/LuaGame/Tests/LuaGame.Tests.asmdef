@@ -5,6 +5,7 @@
 		"LuaJIT",
 		"LuaVM",
 		"LuaECS",
+		"LuaECS.Tests",
 		"LuaGame",
 		"Unity.Entities",
 		"Unity.Entities.Hybrid",

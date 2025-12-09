@@ -244,20 +244,11 @@ namespace LuaECS.Core
 
 		public static void RegisterFunctions(lua_State l)
 		{
-			// New domain-oriented namespaces
+			// Domain-oriented namespaces
 			RegisterEntitiesFunctions(l); // entities.*
 			RegisterTransformNamespace(l); // transform.*
 			RegisterSpatialNamespace(l); // spatial.*
 			RegisterEventsFunctions(l); // events.*
-
-			// Legacy ecs.* table for backward compatibility
-			Lua.lua_newtable(l);
-			RegisterTransformFunctions(l);
-			RegisterSpatialFunctions(l);
-			RegisterEntityFunctions(l);
-			RegisterLogFunctions(l);
-			// Note: RegisterCommandFunctions removed - use transform.move_toward(), entities.destroy(), events.send_attack()
-			Lua.lua_setglobal(l, "ecs");
 
 			InitializeGlobalLog(l);
 

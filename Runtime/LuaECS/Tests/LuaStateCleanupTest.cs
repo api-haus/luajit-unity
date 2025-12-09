@@ -25,7 +25,7 @@ namespace LuaECS.Tests
 		{
 			m_World = World.DefaultGameObjectInjectionWorld;
 			m_EntityManager = m_World.EntityManager;
-			m_VM = LuaVMManager.GetOrCreate();
+			m_VM = LuaTestUtilities.GetOrCreateTestVM();
 			yield return null;
 		}
 

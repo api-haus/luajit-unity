@@ -59,20 +59,6 @@ namespace LuaVM.Core
 		}
 
 		/// <summary>
-		/// Register a bridge function registration callback.
-		/// Call before Initialize() or use RegisterBridgeNow() after initialization.
-		/// </summary>
-		public void RegisterBridge(LuaBridgeRegistration registration)
-		{
-			m_BridgeRegistrations.Add(registration);
-
-			if (m_State.IsNotNull)
-			{
-				registration(m_State);
-			}
-		}
-
-		/// <summary>
 		/// Register bridge functions immediately on an already-initialized VM.
 		/// </summary>
 		public void RegisterBridgeNow(LuaBridgeRegistration registration)
@@ -622,9 +608,9 @@ namespace LuaVM.Core
 			return CallFunction(scriptName, "OnInit", instanceId, stateRef);
 		}
 
-		public bool CallUpdate(string scriptName, int instanceId, int stateRef, float deltaTime)
+		public bool CallTick(string scriptName, int instanceId, int stateRef, float deltaTime)
 		{
-			return CallFunction(scriptName, "OnUpdate", instanceId, stateRef, deltaTime);
+			return CallFunction(scriptName, "OnTick", instanceId, stateRef, deltaTime);
 		}
 
 		public bool CallCommand(string scriptName, int instanceId, int stateRef, string command)

@@ -90,5 +90,6 @@ namespace LuaECS.Components
 		public int entityIndex;
 		public Hash128 requestHash;
 		public bool disabled;
+		public LuaTickGroup tickGroup;
 	}
 }

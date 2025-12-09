@@ -7,7 +7,7 @@ Lua scripting framework for Unity with ECS integration. Includes LuaJIT bindings
 ## Features
 
 - **LuaJIT Bindings** - Complete P/Invoke bindings to lua51 native library
-- **Script Lifecycle** - Automatic `OnInit`, `OnUpdate`, `OnDestroy`, `OnCommand`, event callbacks
+- **Script Lifecycle** - Automatic `OnInit`, `OnTick`, `OnDestroy`, `OnCommand`, event callbacks
 - **ECS Bridge** - Transform, spatial queries, entity creation/destruction from Lua
 - **Health System** - Health component with damage, death events, and Lua bridge
 - **Character Controller** - Integration with Unity Character Controller package
@@ -79,7 +79,7 @@ using LuaVM.Core;
 var vm = new LuaVMManager();
 vm.LoadScript("my_script");
 vm.CallInit("my_script", entityId, stateRef);
-vm.CallUpdate("my_script", entityId, stateRef, deltaTime);
+vm.CallTick("my_script", entityId, stateRef, deltaTime);
 ```
 
 ### LuaECS (Full ECS Integration)
@@ -92,7 +92,7 @@ function OnInit(entity, state)
     state.speed = 5
 end
 
-function OnUpdate(entity, state, dt)
+function OnTick(entity, state, dt)
     local pos = ecs.get_position(entity)
     local target = ecs.query_entities_near(entity, 10)[1]
     if target then
@@ -114,7 +114,7 @@ function OnInit(entity, state)
     health.set(entity, 100, 100)  -- 100/100 HP
 end
 
-function OnUpdate(entity, state, dt)
+function OnTick(entity, state, dt)
     local hp, max = health.get(entity)
     if hp < max * 0.5 then
         state.mode = "fleeing"
@@ -136,10 +136,10 @@ function OnInit(entity, state)
     state.player = character.create({x = 0, y = 1, z = 0})
 end
 
-function OnUpdate(entity, state, dt)
+function OnTick(entity, state, dt)
     local move = input.get_move()
     character.set_move_input(state.player, move.x, move.y)
-    
+
     if input.get_jump() then
         character.set_jump(state.player, true)
     end
@@ -207,11 +207,30 @@ Scripts receive the following callbacks:
 | Callback                           | Description                           |
 | ---------------------------------- | ------------------------------------- |
 | `OnInit(entity, state)`            | Called once when script is loaded     |
-| `OnUpdate(entity, state, dt)`      | Called every frame                    |
+| `OnTick(entity, state, dt)`        | Called at configured tick rate        |
 | `OnDestroy(entity, state)`         | Called before entity is destroyed     |
 | `OnCommand(entity, state, cmd)`    | Called when command is sent to entity |
 | `OnDeath(entity, state, event)`    | Called when entity health reaches 0   |
 | `On<EventName>(entity, state, ev)` | Called for custom events              |
+
+### Tick Groups
+
+Control when `OnTick` is called using the `@tick:` annotation:
+
+```lua
+-- @tick: fixed
+function OnTick(entity, state, dt)
+    -- Called at fixed timestep (physics rate)
+end
+```
+
+| Tick Group       | Description                              |
+| ---------------- | ---------------------------------------- |
+| `variable`       | Default. Every frame in SimulationGroup  |
+| `fixed`          | Fixed timestep (FixedStepSimulationGroup)|
+| `before_physics` | Before physics simulation                |
+| `after_physics`  | After physics simulation                 |
+| `after_transform`| After transform updates                  |
 
 ## Building Native Libraries
 

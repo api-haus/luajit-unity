@@ -45,7 +45,7 @@ namespace LuaECS.Authoring
 					return;
 				}
 
-				var entity = GetEntity(TransformUsageFlags.Dynamic);
+				var entity = GetEntity(TransformUsageFlags.None);
 				var requestsBuffer = AddBuffer<LuaScriptRequest>(entity);
 
 				foreach (var scriptAuthor in m_Scripts)

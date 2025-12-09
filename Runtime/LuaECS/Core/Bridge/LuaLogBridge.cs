@@ -6,14 +6,14 @@ namespace LuaECS.Core
 
 	public static partial class LuaECSBridge
 	{
-		internal static void RegisterLogFunctions(lua_State l)
-		{
-			RegisterFunction(l, "log_dispatch", ECS_LogDispatch);
-			RegisterFunction(l, "traceback", ECS_Traceback);
-		}
-
 		internal static void InitializeGlobalLog(lua_State l)
 		{
+			// Register internal log functions
+			Lua.lua_newtable(l);
+			RegisterFunction(l, "dispatch", ECS_LogDispatch);
+			RegisterFunction(l, "traceback", ECS_Traceback);
+			Lua.lua_setglobal(l, "_log_internal");
+
 			const string logSetup =
 				/**lua*/@"
 local function format_message(message, ...)
@@ -35,7 +35,7 @@ end
 local function dispatch_log(level, message, ...)
 	local msg = format_message(message, ...)
 	local stack_trace = capture_stack_trace()
-	ecs.log_dispatch(level, msg, stack_trace)
+	_log_internal.dispatch(level, msg, stack_trace)
 end
 
 local function make_logger(level)

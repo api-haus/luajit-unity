@@ -2,8 +2,8 @@ namespace LuaGame.Tests
 {
 	using System.Collections;
 	using LuaECS.Components;
+	using LuaECS.Tests;
 	using LuaGame.Components;
-	using LuaVM.Core;
 	using NUnit.Framework;
 	using Unity.Entities;
 	using Unity.Transforms;
@@ -23,7 +23,7 @@ namespace LuaGame.Tests
 		{
 			m_World = World.DefaultGameObjectInjectionWorld;
 			m_EntityManager = m_World.EntityManager;
-			LuaVMManager.GetOrCreate();
+			LuaTestUtilities.GetOrCreateTestVM();
 			yield return null;
 		}
 

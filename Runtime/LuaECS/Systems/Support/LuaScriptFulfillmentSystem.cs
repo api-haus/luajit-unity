@@ -31,6 +31,9 @@ namespace LuaECS.Systems.Support
 		protected override void OnStartRunning()
 		{
 			m_Vm = LuaVMManager.Instance ?? LuaVMManager.GetOrCreate();
+
+			// Register ECS bridge - must happen before any scripts are loaded
+			m_Vm.RegisterBridgeNow(LuaECSBridge.RegisterFunctions);
 		}
 
 		protected override void OnUpdate()
@@ -129,6 +132,10 @@ namespace LuaECS.Systems.Support
 						continue;
 					}
 
+					// Parse script annotations for tick group
+					var scriptPath = LuaScriptPathUtility.GetScriptFilePath(scriptName);
+					var annotations = LuaScriptAnnotationParser.ParseFile(scriptPath);
+
 					var stateRef = m_Vm.CreateEntityState(scriptName, entityId);
 					if (stateRef < 0)
 					{
@@ -151,6 +158,7 @@ namespace LuaECS.Systems.Support
 							entityIndex = entityId,
 							requestHash = request.requestHash,
 							disabled = false,
+							tickGroup = annotations.tickGroup,
 						}
 					);
 
