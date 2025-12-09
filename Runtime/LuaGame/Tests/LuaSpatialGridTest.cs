@@ -198,12 +198,7 @@ namespace LuaGame.Tests
 			LuaSpatialGrid.Add(entity3, 3, new float3(10, 0, 0), 0.5f);
 
 			var results = new NativeList<SpatialEntry>(16, Allocator.Temp);
-			LuaSpatialGrid.QueryLineSegment(
-				new float3(0, 0, 0),
-				new float3(15, 0, 0),
-				0.5f,
-				ref results
-			);
+			LuaSpatialGrid.QueryLineSegment(new float3(0, 0, 0), new float3(15, 0, 0), 0.5f, ref results);
 
 			Assert.AreEqual(2, results.Length, "Should find 2 entities along line");
 
@@ -220,12 +215,7 @@ namespace LuaGame.Tests
 			LuaSpatialGrid.Add(entity2, 2, new float3(5, 0, 0), 0.5f);
 
 			var results = new NativeList<SpatialEntry>(16, Allocator.Temp);
-			LuaSpatialGrid.QueryLineSegment(
-				new float3(0, 0, 0),
-				new float3(15, 0, 0),
-				0.5f,
-				ref results
-			);
+			LuaSpatialGrid.QueryLineSegment(new float3(0, 0, 0), new float3(15, 0, 0), 0.5f, ref results);
 
 			Assert.AreEqual(2, results.Length);
 			Assert.AreEqual(2, results[0].entityId, "Closer entity should be first");
@@ -241,12 +231,7 @@ namespace LuaGame.Tests
 			LuaSpatialGrid.Add(entity, 1, new float3(1, 0, 0), 0.5f);
 
 			var results = new NativeList<SpatialEntry>(16, Allocator.Temp);
-			LuaSpatialGrid.QueryLineSegment(
-				float3.zero,
-				float3.zero,
-				2f,
-				ref results
-			);
+			LuaSpatialGrid.QueryLineSegment(float3.zero, float3.zero, 2f, ref results);
 
 			Assert.AreEqual(1, results.Length);
 
@@ -263,12 +248,7 @@ namespace LuaGame.Tests
 			LuaSpatialGrid.Add(entity2, 2, new float3(0, 10, 0), 1f); // Off diagonal
 
 			var results = new NativeList<SpatialEntry>(16, Allocator.Temp);
-			LuaSpatialGrid.QueryLineSegment(
-				float3.zero,
-				new float3(10, 10, 10),
-				1f,
-				ref results
-			);
+			LuaSpatialGrid.QueryLineSegment(float3.zero, new float3(10, 10, 10), 1f, ref results);
 
 			Assert.AreEqual(1, results.Length);
 			Assert.AreEqual(1, results[0].entityId);

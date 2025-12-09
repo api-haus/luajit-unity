@@ -55,7 +55,10 @@ namespace LuaGame.Core
 
 			s_grid.Data = new LuaSpatialGridData
 			{
-				grid = new NativeParallelMultiHashMap<int, SpatialEntry>(initialCapacity, Allocator.Persistent),
+				grid = new NativeParallelMultiHashMap<int, SpatialEntry>(
+					initialCapacity,
+					Allocator.Persistent
+				),
 				cellSize = cellSize,
 				inverseCellSize = 1f / cellSize,
 				gridMin = int3.zero,
@@ -201,11 +204,7 @@ namespace LuaGame.Core
 		/// <summary>
 		/// Queries all entries within an axis-aligned box.
 		/// </summary>
-		public static void QueryBox(
-			float3 center,
-			float3 extents,
-			ref NativeList<SpatialEntry> results
-		)
+		public static void QueryBox(float3 center, float3 extents, ref NativeList<SpatialEntry> results)
 		{
 			ref var data = ref s_grid.Data;
 			if (!data.isCreated)

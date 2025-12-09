@@ -40,10 +40,23 @@ namespace LuaECS.Tests
 		}
 
 		/// <summary>
+		/// Gets the path to the test scripts directory.
+		/// </summary>
+		public static string TestScriptsPath => Path.Combine(TestLuaBasePath, "scripts");
+
+		/// <summary>
 		/// Gets or creates a LuaVMManager configured to use test resources.
+		/// Registers the test scripts path with the search path registry.
 		/// </summary>
 		public static LuaVMManager GetOrCreateTestVM()
 		{
+			// Always ensure test path is registered before VM operations
+			var testScriptsPath = TestScriptsPath;
+			if (Directory.Exists(testScriptsPath))
+			{
+				LuaScriptSearchPaths.AddSearchPath(testScriptsPath, priority: 0);
+			}
+
 			// If instance exists and is valid, return it
 			if (LuaVMManager.Instance != null && LuaVMManager.Instance.IsValid)
 				return LuaVMManager.Instance;
@@ -53,11 +66,15 @@ namespace LuaECS.Tests
 		}
 
 		/// <summary>
-		/// Disposes the current VM instance if it exists.
+		/// Disposes the current VM instance and cleans up test search paths.
 		/// Call in test teardown to ensure clean state.
 		/// </summary>
 		public static void DisposeVM()
 		{
+			// Remove test scripts path from search registry
+			var testScriptsPath = TestScriptsPath;
+			LuaScriptSearchPaths.RemoveSearchPath(testScriptsPath);
+
 			LuaVMManager.Instance?.Dispose();
 		}
 	}

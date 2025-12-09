@@ -1,8 +1,10 @@
 namespace LuaECS.Core
 {
 	using System;
+	using System.Collections.Generic;
 	using System.IO;
 	using System.Text;
+	using LuaVM.Core;
 	using Unity.Collections;
 	using UnityEngine;
 	using Hash128 = Unity.Entities.Hash128;
@@ -36,13 +38,40 @@ namespace LuaECS.Core
 		public const string LUA_EXTENSION = ".lua";
 
 		static readonly string s_scriptsFolderRelativeWithSlash = SCRIPTS_FOLDER_RELATIVE + "/";
-		static readonly string s_scriptsFolderAbsolute = Path.Combine(
-			Application.streamingAssetsPath,
-			"lua",
-			"scripts"
-		);
 
-		public static string ScriptsFolderAbsolute => s_scriptsFolderAbsolute;
+		public static string ScriptsFolderAbsolute => LuaScriptSearchPaths.DefaultScriptsPath;
+
+		/// <summary>
+		/// Initializes the search path registry with the default StreamingAssets path.
+		/// Delegates to LuaScriptSearchPaths.
+		/// </summary>
+		public static void Initialize() => LuaScriptSearchPaths.Initialize();
+
+		/// <summary>
+		/// Adds a search path for script loading.
+		/// Delegates to LuaScriptSearchPaths.
+		/// </summary>
+		public static void AddSearchPath(string absolutePath, int priority = 0) =>
+			LuaScriptSearchPaths.AddSearchPath(absolutePath, priority);
+
+		/// <summary>
+		/// Removes a search path from the registry.
+		/// Delegates to LuaScriptSearchPaths.
+		/// </summary>
+		public static void RemoveSearchPath(string absolutePath) =>
+			LuaScriptSearchPaths.RemoveSearchPath(absolutePath);
+
+		/// <summary>
+		/// Clears all custom search paths, leaving only the default StreamingAssets path.
+		/// Delegates to LuaScriptSearchPaths.
+		/// </summary>
+		public static void ClearSearchPaths() => LuaScriptSearchPaths.ClearSearchPaths();
+
+		/// <summary>
+		/// Gets a copy of the current search paths.
+		/// Delegates to LuaScriptSearchPaths.
+		/// </summary>
+		public static IReadOnlyList<string> GetSearchPaths() => LuaScriptSearchPaths.GetSearchPaths();
 
 		public static bool TryNormalizeScriptId(string input, out string scriptId, out string error)
 		{
@@ -111,13 +140,47 @@ namespace LuaECS.Core
 				return string.Empty;
 
 			var relativePath = ScriptIdToRelativePath(normalized);
-			return Path.Combine(ScriptsFolderAbsolute, relativePath + LUA_EXTENSION);
+			var fileName = relativePath + LUA_EXTENSION;
+
+			return LuaScriptSearchPaths.GetScriptPath(fileName);
 		}
 
 		public static bool ScriptExists(string scriptId)
 		{
-			var path = GetScriptFilePath(scriptId);
-			return !string.IsNullOrEmpty(path) && File.Exists(path);
+			var normalized = NormalizeScriptId(scriptId);
+			if (string.IsNullOrEmpty(normalized))
+				return false;
+
+			var relativePath = ScriptIdToRelativePath(normalized);
+			var fileName = relativePath + LUA_EXTENSION;
+
+			return LuaScriptSearchPaths.ScriptExists(fileName);
+		}
+
+		/// <summary>
+		/// Tries to find a script file across all search paths.
+		/// </summary>
+		/// <param name="scriptId">Script identifier.</param>
+		/// <param name="foundPath">Output: absolute path where script was found.</param>
+		/// <param name="searchedBasePath">Output: base path where script was found.</param>
+		/// <returns>True if script was found.</returns>
+		public static bool TryGetScriptFilePath(
+			string scriptId,
+			out string foundPath,
+			out string searchedBasePath
+		)
+		{
+			foundPath = string.Empty;
+			searchedBasePath = string.Empty;
+
+			var normalized = NormalizeScriptId(scriptId);
+			if (string.IsNullOrEmpty(normalized))
+				return false;
+
+			var relativePath = ScriptIdToRelativePath(normalized);
+			var fileName = relativePath + LUA_EXTENSION;
+
+			return LuaScriptSearchPaths.TryFindScript(fileName, out foundPath, out searchedBasePath);
 		}
 
 		public static string ScriptIdToRelativePath(string scriptId)

@@ -358,7 +358,8 @@ namespace LuaGame.Tests
 			// Everyone else is enemy
 			for (var i = 0; i < 32; i++)
 			{
-				if (i == 5) continue;
+				if (i == 5)
+					continue;
 				Assert.IsTrue(team.IsEnemy(i), $"Team {i} should be enemy");
 			}
 		}

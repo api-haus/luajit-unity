@@ -3,9 +3,9 @@ namespace LuaECS.Tests
 	using System.Collections;
 	using Components;
 	using Core;
-	using Systems.Support;
 	using LuaVM.Core;
 	using NUnit.Framework;
+	using Systems.Support;
 	using Unity.Entities;
 	using Unity.Transforms;
 	using UnityEngine.TestTools;

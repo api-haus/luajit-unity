@@ -1,10 +1,10 @@
 namespace LuaGame.Systems
 {
-	using LuaGame.Components;
-	using LuaGame.Core;
 	using LuaECS.Components;
 	using LuaECS.Core;
 	using LuaECS.Systems;
+	using LuaGame.Components;
+	using LuaGame.Core;
 	using Unity.Collections;
 	using Unity.Entities;
 	using Unity.Mathematics;

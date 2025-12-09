@@ -1,8 +1,8 @@
 namespace LuaGame.Bridge
 {
 	using AOT;
-	using LuaGame.Components;
 	using LuaECS.Core;
+	using LuaGame.Components;
 	using LuaNET.LuaJIT;
 	using Unity.Burst;
 	using Unity.Collections.LowLevel.Unsafe;
@@ -159,7 +159,11 @@ namespace LuaGame.Bridge
 			}
 
 			ref var ctx = ref s_context.Data;
-			if (!ctx.isValid || !ctx.teamLookup.HasComponent(entityA) || !ctx.teamLookup.HasComponent(entityB))
+			if (
+				!ctx.isValid
+				|| !ctx.teamLookup.HasComponent(entityA)
+				|| !ctx.teamLookup.HasComponent(entityB)
+			)
 			{
 				Lua.lua_pushboolean(l, 0);
 				return 1;
@@ -193,7 +197,11 @@ namespace LuaGame.Bridge
 			}
 
 			ref var ctx = ref s_context.Data;
-			if (!ctx.isValid || !ctx.teamLookup.HasComponent(entityA) || !ctx.teamLookup.HasComponent(entityB))
+			if (
+				!ctx.isValid
+				|| !ctx.teamLookup.HasComponent(entityA)
+				|| !ctx.teamLookup.HasComponent(entityB)
+			)
 			{
 				Lua.lua_pushboolean(l, 0);
 				return 1;

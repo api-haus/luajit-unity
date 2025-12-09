@@ -152,7 +152,12 @@ namespace LuaECS.Systems
 			m_PhysicsVelocityLookup.Update(this);
 
 			// Pass ECB and deltaTime to context for direct use by bridge functions
-			LuaECSBridge.UpdateBurstContext(m_CurrentECB, deltaTime, m_TransformLookup, m_ScriptBufferLookup);
+			LuaECSBridge.UpdateBurstContext(
+				m_CurrentECB,
+				deltaTime,
+				m_TransformLookup,
+				m_ScriptBufferLookup
+			);
 			LuaECSBridge.UpdateCharacterContext(
 				m_CharacterControlLookup,
 				m_CharacterBodyLookup,
@@ -184,13 +189,22 @@ namespace LuaECS.Systems
 					if (script.stateRef >= 0 && !script.disabled && script.tickGroup == LuaTickGroup.Variable)
 					{
 						m_PendingUpdates.Add(
-							(entity, i, script.scriptName.ToString(), script.entityIndex, script.stateRef, script.tickGroup)
+							(
+								entity,
+								i,
+								script.scriptName.ToString(),
+								script.entityIndex,
+								script.stateRef,
+								script.tickGroup
+							)
 						);
 					}
 				}
 			}
 
-			foreach (var (entity, scriptIndex, scriptName, entityIndex, stateRef, tickGroup) in m_PendingUpdates)
+			foreach (
+				var (entity, scriptIndex, scriptName, entityIndex, stateRef, tickGroup) in m_PendingUpdates
+			)
 			{
 				if (!EntityManager.Exists(entity))
 				{

@@ -203,7 +203,10 @@ namespace LuaGame.Bridge
 
 			if (entity != Entity.Null)
 			{
-				ctx.ecb.AddComponent(entity, LuaDamageZone.CreateCapsule(capsuleRadius, halfHeight, damage));
+				ctx.ecb.AddComponent(
+					entity,
+					LuaDamageZone.CreateCapsule(capsuleRadius, halfHeight, damage)
+				);
 				ctx.ecb.AddBuffer<LuaDamageZoneHit>(entity);
 				ctx.ecb.AddBuffer<LuaScript>(entity);
 			}

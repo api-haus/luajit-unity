@@ -49,6 +49,11 @@ function OnLoad(world, state)
 end
 
 function OnTick(world, state, dt)
+    -- Skip updates until fully loaded (entities may not exist yet during loading)
+    if not state.loaded then
+        return
+    end
+
     if state.game_over then
         return
     end

@@ -1,7 +1,7 @@
 namespace LuaVM.Tests
 {
-	using LuaNET.LuaJIT;
 	using Core;
+	using LuaNET.LuaJIT;
 	using NUnit.Framework;
 	using Unity.Mathematics;
 

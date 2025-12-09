@@ -28,7 +28,10 @@ namespace LuaGame.Bridge
 		static readonly SharedStatic<HealthBridgeContext> s_context =
 			SharedStatic<HealthBridgeContext>.GetOrCreate<HealthContextMarker, HealthBridgeContext>();
 
-		public static void UpdateContext(ComponentLookup<LuaHealth> healthLookup, EntityCommandBuffer ecb)
+		public static void UpdateContext(
+			ComponentLookup<LuaHealth> healthLookup,
+			EntityCommandBuffer ecb
+		)
 		{
 			s_context.Data = new HealthBridgeContext
 			{
@@ -85,18 +88,38 @@ namespace LuaGame.Bridge
 				return 1;
 			}
 
-			ref var ctx = ref s_context.Data;
-			if (!ctx.isValid)
-			{
-				Lua.lua_pushboolean(l, 0);
-				return 1;
-			}
+			// For pending entities (created via ECB this frame), we must use the same ECB
+			// that created the entity. The main burst context ECB has the temporary entity.
+			var isPending = LuaECSBridge.IsPendingEntity(entityId);
+			EntityCommandBuffer ecb;
 
-			// Don't add if already has health
-			if (ctx.healthLookup.HasComponent(entity))
+			if (isPending)
 			{
-				Lua.lua_pushboolean(l, 1);
-				return 1;
+				// Use the main burst context's ECB for pending entities
+				if (!LuaECSBridge.TryGetBurstContextECB(out ecb))
+				{
+					Lua.lua_pushboolean(l, 0);
+					return 1;
+				}
+			}
+			else
+			{
+				// Use health context's ECB for existing entities
+				ref var ctx = ref s_context.Data;
+				if (!ctx.isValid)
+				{
+					Lua.lua_pushboolean(l, 0);
+					return 1;
+				}
+
+				// Don't add if already has health
+				if (ctx.healthLookup.HasComponent(entity))
+				{
+					Lua.lua_pushboolean(l, 1);
+					return 1;
+				}
+
+				ecb = ctx.ecb;
 			}
 
 			var maxHealth = (float)Lua.lua_tonumber(l, 2);
@@ -104,8 +127,8 @@ namespace LuaGame.Bridge
 				maxHealth = 100f;
 
 			// Add health component and damageable tag
-			ctx.ecb.AddComponent(entity, LuaHealth.Create(maxHealth));
-			ctx.ecb.AddComponent(entity, new LuaDamageableTag());
+			ecb.AddComponent(entity, LuaHealth.Create(maxHealth));
+			ecb.AddComponent(entity, new LuaDamageableTag());
 
 			Lua.lua_pushboolean(l, 1);
 			return 1;

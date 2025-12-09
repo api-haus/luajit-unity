@@ -1,9 +1,9 @@
 namespace LuaGame.Systems
 {
-	using LuaECS.Components;
-	using LuaECS.Systems;
 	using Bridge;
 	using Components;
+	using LuaECS.Components;
+	using LuaECS.Systems;
 	using LuaVM.Core;
 	using Unity.Entities;
 
@@ -37,6 +37,17 @@ namespace LuaGame.Systems
 					m_BridgeRegistered = true;
 				}
 			}
+		}
+
+		/// <summary>
+		/// Primes the health context before OnInit runs.
+		/// Called by GameModeManager to enable health.add() during OnInit.
+		/// </summary>
+		public void PrimeContextForOnInit()
+		{
+			m_HealthLookup.Update(this);
+			var ecb = m_ECBSystem.CreateCommandBuffer();
+			LuaHealthBridge.UpdateContext(m_HealthLookup, ecb);
 		}
 
 		protected override void OnUpdate()

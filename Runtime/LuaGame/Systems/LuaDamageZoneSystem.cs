@@ -1,10 +1,11 @@
 namespace LuaGame.Systems
 {
-	using LuaGame.Components;
-	using LuaGame.Core;
 	using LuaECS.Components;
 	using LuaECS.Core;
 	using LuaECS.Systems;
+	using LuaGame.Bridge;
+	using LuaGame.Components;
+	using LuaGame.Core;
 	using Unity.Collections;
 	using Unity.Entities;
 	using Unity.Mathematics;
@@ -24,12 +25,30 @@ namespace LuaGame.Systems
 		ComponentLookup<LuaHealth> m_HealthLookup;
 		ComponentLookup<LuaTeam> m_TeamLookup;
 		ComponentLookup<LocalTransform> m_TransformLookup;
+		ComponentLookup<LuaDamageZone> m_ZoneLookup;
+		BufferLookup<LuaDamageZoneHit> m_HitBufferLookup;
+		EndSimulationEntityCommandBufferSystem m_ECBSystem;
 
 		protected override void OnCreate()
 		{
 			m_HealthLookup = GetComponentLookup<LuaHealth>();
 			m_TeamLookup = GetComponentLookup<LuaTeam>();
 			m_TransformLookup = GetComponentLookup<LocalTransform>();
+			m_ZoneLookup = GetComponentLookup<LuaDamageZone>();
+			m_HitBufferLookup = GetBufferLookup<LuaDamageZoneHit>();
+			m_ECBSystem = World.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>();
+		}
+
+		/// <summary>
+		/// Primes the damage zone context before OnInit runs.
+		/// Called by GameModeManager to enable damagezone.create() during OnInit.
+		/// </summary>
+		public void PrimeContextForOnInit()
+		{
+			m_ZoneLookup.Update(this);
+			m_HitBufferLookup.Update(this);
+			var ecb = m_ECBSystem.CreateCommandBuffer();
+			LuaDamageZoneBridge.UpdateContext(m_ZoneLookup, m_HitBufferLookup, ecb);
 		}
 
 		protected override void OnUpdate()
@@ -40,6 +59,12 @@ namespace LuaGame.Systems
 			m_HealthLookup.Update(this);
 			m_TeamLookup.Update(this);
 			m_TransformLookup.Update(this);
+			m_ZoneLookup.Update(this);
+			m_HitBufferLookup.Update(this);
+
+			// Update bridge context so Lua can interact with damage zones
+			var ecb = m_ECBSystem.CreateCommandBuffer();
+			LuaDamageZoneBridge.UpdateContext(m_ZoneLookup, m_HitBufferLookup, ecb);
 
 			var deltaTime = SystemAPI.Time.DeltaTime;
 			var elapsedTime = (float)SystemAPI.Time.ElapsedTime;
@@ -248,6 +273,11 @@ namespace LuaGame.Systems
 					}
 				);
 			}
+		}
+
+		protected override void OnDestroy()
+		{
+			LuaDamageZoneBridge.ClearContext();
 		}
 	}
 }

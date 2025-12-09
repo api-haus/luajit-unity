@@ -5,6 +5,7 @@ namespace LuaGame.Tests
 	using GameMode;
 	using LuaECS.Components;
 	using LuaECS.Core;
+	using LuaECS.Tests;
 	using NUnit.Framework;
 	using Unity.Entities;
 	using UnityEngine.TestTools;
@@ -23,6 +24,9 @@ namespace LuaGame.Tests
 			// Ensure clean state
 			if (LuaEntityRegistry.IsCreated)
 				LuaEntityRegistry.Dispose();
+
+			// Register test scripts path before creating manager
+			LuaTestUtilities.GetOrCreateTestVM();
 
 			m_Manager = new GameModeManager();
 			yield return null;
@@ -79,7 +83,10 @@ namespace LuaGame.Tests
 			var requestQuery = entityManager.CreateEntityQuery(typeof(LuaScriptRequest));
 			var requestCount = requestQuery.CalculateEntityCount();
 
-			Assert.IsTrue(requestCount > 0, "World should contain entities with script requests after mode load");
+			Assert.IsTrue(
+				requestCount > 0,
+				"World should contain entities with script requests after mode load"
+			);
 		}
 
 		[UnityTest]
@@ -207,7 +214,11 @@ namespace LuaGame.Tests
 				throw unloadTask.Exception.InnerException;
 
 			Assert.IsTrue(unloadingFired, "OnModeUnloading should fire");
-			Assert.AreEqual("fruit_eater", unloadingModeName, "Should pass correct mode name to unload event");
+			Assert.AreEqual(
+				"fruit_eater",
+				unloadingModeName,
+				"Should pass correct mode name to unload event"
+			);
 		}
 
 		[UnityTest]

@@ -101,8 +101,9 @@ namespace LuaECS.Core
 		/// Tracks entities created in the current frame before ECB playback.
 		/// Maps entityId to deferred Entity handle for same-frame script additions.
 		/// </summary>
-		static readonly SharedStatic<UnsafeHashMap<int, Entity>> s_pendingEntities =
-			SharedStatic<UnsafeHashMap<int, Entity>>.GetOrCreate<PendingEntitiesMarker, UnsafeHashMap<int, Entity>>();
+		static readonly SharedStatic<UnsafeHashMap<int, Entity>> s_pendingEntities = SharedStatic<
+			UnsafeHashMap<int, Entity>
+		>.GetOrCreate<PendingEntitiesMarker, UnsafeHashMap<int, Entity>>();
 
 		static readonly SharedStatic<BurstBridgeContext> s_burstContext =
 			SharedStatic<BurstBridgeContext>.GetOrCreate<BurstContextMarker, BurstBridgeContext>();
@@ -237,9 +238,44 @@ namespace LuaECS.Core
 		/// </summary>
 		internal static Entity GetPendingEntity(int entityId)
 		{
-			if (s_pendingEntities.Data.IsCreated && s_pendingEntities.Data.TryGetValue(entityId, out var entity))
+			if (
+				s_pendingEntities.Data.IsCreated
+				&& s_pendingEntities.Data.TryGetValue(entityId, out var entity)
+			)
 				return entity;
 			return Entity.Null;
+		}
+
+		/// <summary>
+		/// Checks if an entity ID is pending (created via ECB this frame, not yet played back).
+		/// </summary>
+		public static bool IsPendingEntity(int entityId)
+		{
+			return s_pendingEntities.Data.IsCreated && s_pendingEntities.Data.ContainsKey(entityId);
+		}
+
+		/// <summary>
+		/// Gets the ECB from the burst context. Used by other bridges to add components to pending entities.
+		/// </summary>
+		public static bool TryGetBurstContextECB(out EntityCommandBuffer ecb)
+		{
+			ref var ctx = ref s_burstContext.Data;
+			if (ctx.isValid)
+			{
+				ecb = ctx.ecb;
+				return true;
+			}
+			ecb = default;
+			return false;
+		}
+
+		/// <summary>
+		/// Clears the burst context to prevent use of disposed ECBs.
+		/// Call after manually playing back an ECB.
+		/// </summary>
+		public static void ClearBurstContext()
+		{
+			s_burstContext.Data = default;
 		}
 
 		public static void RegisterFunctions(lua_State l)
@@ -312,6 +348,7 @@ namespace LuaECS.Core
 
 		/// <summary>
 		/// Burst-compatible entity lookup from entity ID.
+		/// Checks both the main entity map and pending entities (for same-frame ECB operations).
 		/// Returns Entity.Null if not found.
 		/// </summary>
 		public static Entity GetEntityFromIdBurst(int entityId)
@@ -320,7 +357,12 @@ namespace LuaECS.Core
 			if (!ctx.isValid || entityId <= 0)
 				return Entity.Null;
 
-			return ctx.entityIdMap.TryGetValue(entityId, out var entity) ? entity : Entity.Null;
+			// Check main entity map first
+			if (ctx.entityIdMap.TryGetValue(entityId, out var entity) && entity != Entity.Null)
+				return entity;
+
+			// Fall back to pending entities (created this frame via ECB, not yet played back)
+			return GetPendingEntity(entityId);
 		}
 
 		/// <summary>
@@ -332,6 +374,10 @@ namespace LuaECS.Core
 			transform = default;
 
 			if (!ctx.isValid || entity == Entity.Null)
+				return false;
+
+			// Guard against deferred entities (created via ECB but not yet played back)
+			if (entity.Index < 0)
 				return false;
 
 			if (!ctx.transformLookup.HasComponent(entity))
@@ -349,6 +395,10 @@ namespace LuaECS.Core
 			ref var ctx = ref s_burstContext.Data;
 
 			if (!ctx.isValid || entity == Entity.Null)
+				return false;
+
+			// Guard against deferred entities (created via ECB but not yet played back)
+			if (entity.Index < 0)
 				return false;
 
 			if (!ctx.transformLookup.HasComponent(entity))
@@ -374,6 +424,10 @@ namespace LuaECS.Core
 		{
 			ref var ctx = ref s_burstContext.Data;
 			if (!ctx.isValid || entity == Entity.Null)
+				return false;
+
+			// Guard against deferred entities (created via ECB but not yet played back)
+			if (entity.Index < 0)
 				return false;
 
 			if (!ctx.scriptBufferLookup.HasBuffer(entity))

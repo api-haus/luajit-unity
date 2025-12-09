@@ -10,11 +10,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void Create_SetsCorrectValues()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 25f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 25f);
 
 			Assert.AreEqual(10f, proj.speed);
 			Assert.AreEqual(25f, proj.damage);
@@ -39,11 +35,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void Create_ZeroDirection_HandlesGracefully()
 		{
-			var proj = LuaProjectile.Create(
-				direction: float3.zero,
-				speed: 10f,
-				damage: 25f
-			);
+			var proj = LuaProjectile.Create(direction: float3.zero, speed: 10f, damage: 25f);
 
 			// Should handle zero direction without NaN
 			Assert.IsFalse(math.any(math.isnan(proj.velocity)));
@@ -165,11 +157,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void ShouldDestroyOnHit_WhenPierceZero()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			Assert.IsTrue(proj.ShouldDestroyOnHit);
 		}
@@ -268,11 +256,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void SetDirection_MaintainsSpeed()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			proj.SetDirection(new float3(0, 1, 0));
 
@@ -283,11 +267,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void SetDirection_NormalizesInput()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			proj.SetDirection(new float3(5, 0, 0)); // Not normalized
 
@@ -297,11 +277,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void SetSpeed_MaintainsDirection()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			proj.SetSpeed(20f);
 
@@ -312,11 +288,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void SetSpeed_ZeroSpeed()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			proj.SetSpeed(0f);
 
@@ -353,11 +325,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void CanPierce_WhenZero()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			Assert.IsFalse(proj.CanPierce);
 		}
@@ -391,11 +359,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void CanBounce_WhenZero()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			Assert.IsFalse(proj.CanBounce);
 		}
@@ -403,11 +367,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void IsActive_DefaultTrue()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			Assert.IsTrue(proj.isActive);
 		}
@@ -415,11 +375,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void IsActive_CanBeDisabled()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			proj.isActive = false;
 
@@ -429,11 +385,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void SourceEntityId_DefaultMinusOne()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			Assert.AreEqual(-1, proj.sourceEntityId, "Default source is -1 (no source)");
 		}
@@ -441,11 +393,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void SourceEntityId_CanBeSet()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			proj.sourceEntityId = 42;
 
@@ -455,11 +403,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void TeamId_DefaultZero()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			Assert.AreEqual(0, proj.teamId);
 		}
@@ -467,11 +411,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void HitCooldown_DefaultHalfSecond()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			Assert.AreEqual(0.5f, proj.hitCooldown, "Default hit cooldown is 0.5 seconds");
 		}
@@ -479,11 +419,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void Radius_DefaultPointOne()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			Assert.AreEqual(0.1f, proj.radius, "Default radius is 0.1f");
 		}
@@ -491,11 +427,7 @@ namespace LuaGame.Tests
 		[Test]
 		public void PreviousPosition_TracksMovement()
 		{
-			var proj = LuaProjectile.Create(
-				direction: new float3(1, 0, 0),
-				speed: 10f,
-				damage: 10f
-			);
+			var proj = LuaProjectile.Create(direction: new float3(1, 0, 0), speed: 10f, damage: 10f);
 
 			var startPos = new float3(5, 10, 15);
 			proj.previousPosition = startPos;

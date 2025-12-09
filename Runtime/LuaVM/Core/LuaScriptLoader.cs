@@ -270,6 +270,37 @@ namespace LuaVM.Core
 		}
 
 		/// <summary>
+		/// Load a script by searching all registered paths in LuaScriptSearchPaths.
+		/// </summary>
+		/// <param name="relativePath">Script name (e.g., "player" or "enemies/goblin").</param>
+		/// <returns>Load result with file path reference.</returns>
+		public static LuaScriptLoadResult FromSearchPaths(string relativePath)
+		{
+			if (string.IsNullOrEmpty(relativePath))
+				return LuaScriptLoadResult.Failure("Relative path cannot be empty");
+
+			var normalized = NormalizePath(relativePath);
+			if (normalized.Length > FixedString64Bytes.UTF8MaxLengthInBytes)
+				return LuaScriptLoadResult.Failure("Script ID too long (max 64 bytes)");
+
+			// Build the relative file path with extension
+			var relativeFilePath = normalized + ".lua";
+
+			// Use LuaScriptSearchPaths to find the file across all search paths
+			if (!LuaScriptSearchPaths.TryFindScript(relativeFilePath, out var filePath, out _))
+				return LuaScriptLoadResult.Failure($"File not found in any search path: {normalized}");
+
+			if (filePath.Length > FixedString512Bytes.UTF8MaxLengthInBytes)
+				return LuaScriptLoadResult.Failure("File path too long (max 512 bytes)");
+
+			return LuaScriptLoadResult.Success(
+				new FixedString64Bytes(normalized),
+				LuaScriptSourceType.FILE_PATH,
+				filePath: new FixedString512Bytes(filePath)
+			);
+		}
+
+		/// <summary>
 		/// Reads the source code for a file-based load result.
 		/// </summary>
 		/// <param name="result">Load result with file path.</param>

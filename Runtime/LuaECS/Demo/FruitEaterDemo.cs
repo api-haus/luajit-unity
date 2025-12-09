@@ -109,7 +109,11 @@ namespace LuaECS.Demo
 						pos + (Vector3.back * agentSize),
 						agentColor
 					);
-					Debug.DrawLine(pos + (Vector3.up * agentSize), pos + (Vector3.down * agentSize), agentColor);
+					Debug.DrawLine(
+						pos + (Vector3.up * agentSize),
+						pos + (Vector3.down * agentSize),
+						agentColor
+					);
 				}
 				else
 				{

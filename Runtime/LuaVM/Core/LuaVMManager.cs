@@ -47,6 +47,17 @@ namespace LuaVM.Core
 
 			Instance = this;
 			m_BasePath = basePath ?? Path.Combine(Application.streamingAssetsPath, "lua");
+
+			// Register custom scripts path with highest priority if provided
+			if (basePath != null)
+			{
+				var scriptsPath = Path.Combine(m_BasePath, "scripts");
+				if (Directory.Exists(scriptsPath))
+				{
+					LuaScriptSearchPaths.AddSearchPath(scriptsPath, priority: 0);
+				}
+			}
+
 			Initialize();
 		}
 
@@ -136,13 +147,13 @@ namespace LuaVM.Core
 		}
 
 		/// <summary>
-		/// Load a script by name from StreamingAssets/lua/scripts.
+		/// Load a script by name, searching all registered paths.
 		/// </summary>
 		/// <param name="scriptName">Script name (e.g., "player" or "enemies/goblin").</param>
 		/// <returns>True if script loaded successfully.</returns>
 		public bool LoadScript(string scriptName)
 		{
-			var loadResult = LuaScriptLoader.FromStreamingAssets(scriptName);
+			var loadResult = LuaScriptLoader.FromSearchPaths(scriptName);
 			return LoadScript(loadResult);
 		}
 
@@ -340,11 +351,11 @@ namespace LuaVM.Core
 		}
 
 		/// <summary>
-		/// Reload a script by name from StreamingAssets.
+		/// Reload a script by name, searching all registered paths.
 		/// </summary>
 		public bool ReloadScript(string scriptName)
 		{
-			var loadResult = LuaScriptLoader.FromStreamingAssets(scriptName);
+			var loadResult = LuaScriptLoader.FromSearchPaths(scriptName);
 			return ReloadScript(loadResult);
 		}
 
@@ -765,6 +776,9 @@ namespace LuaVM.Core
 		{
 			if (m_Disposed)
 				return;
+
+			// Note: Don't remove search paths here - they're a global shared registry
+			// that may be used by other code even after this VM is disposed.
 
 			foreach (var kvp in m_ScriptRefs)
 				Lua.luaL_unref(m_State, Lua.LUA_REGISTRYINDEX, kvp.Value);

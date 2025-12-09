@@ -7,6 +7,9 @@ namespace LuaGame.GameMode
 	using LuaECS.Core;
 	using LuaECS.Systems;
 	using LuaECS.Systems.Support;
+	using LuaGame.Bridge;
+	using LuaGame.Components;
+	using LuaGame.Systems;
 	using LuaVM.Core;
 	using Unity.Collections;
 	using Unity.Entities;
@@ -20,6 +23,7 @@ namespace LuaGame.GameMode
 	public class GameModeManager : IDisposable
 	{
 		bool m_BridgeRegistered;
+
 		/// <summary>
 		/// Current game mode name, or null if no mode active.
 		/// </summary>
@@ -72,6 +76,12 @@ namespace LuaGame.GameMode
 			vm.RegisterBridgeNow(LuaGameModeBridge.RegisterFunctions);
 			LuaGameModeBridge.SetManager(this);
 
+			// Register gameplay bridges (health, damage zones, TTL)
+			// These are needed during OnInit when game modes create entities with health/damage
+			vm.RegisterBridgeNow(LuaHealthBridge.RegisterFunctions);
+			vm.RegisterBridgeNow(LuaDamageZoneBridge.RegisterFunctions);
+			vm.RegisterBridgeNow(LuaTTLBridge.RegisterFunctions);
+
 			m_BridgeRegistered = true;
 		}
 
@@ -88,7 +98,11 @@ namespace LuaGame.GameMode
 		/// <summary>
 		/// Load a game mode with progress callback.
 		/// </summary>
-		public async Task LoadModeAsync(string modeName, IProgress<float> progress, CancellationToken ct = default)
+		public async Task LoadModeAsync(
+			string modeName,
+			IProgress<float> progress,
+			CancellationToken ct = default
+		)
 		{
 			if (m_Disposed)
 				throw new ObjectDisposedException(nameof(GameModeManager));
@@ -244,8 +258,16 @@ namespace LuaGame.GameMode
 			var scriptingSystem = world.CreateSystemManaged<LuaScriptingSystem>();
 			simGroup.AddSystemToUpdateList(scriptingSystem);
 
+			// Add gameplay systems (health, damage zones, TTL, spatial grid)
+			simGroup.AddSystemToUpdateList(world.CreateSystemManaged<LuaHealthSystem>());
+			simGroup.AddSystemToUpdateList(world.CreateSystemManaged<LuaDamageZoneSystem>());
+			simGroup.AddSystemToUpdateList(world.CreateSystemManaged<LuaTimeToLiveSystem>());
+			simGroup.AddSystemToUpdateList(world.CreateSystemManaged<LuaSpatialGridSystem>());
+
 			// EndSimulationEntityCommandBufferSystem is needed for deferred operations
-			simGroup.AddSystemToUpdateList(world.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>());
+			simGroup.AddSystemToUpdateList(
+				world.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>()
+			);
 
 			initGroup.SortSystems();
 			simGroup.SortSystems();
@@ -264,12 +286,14 @@ namespace LuaGame.GameMode
 
 			// Add script request for the game mode script
 			var requestBuffer = entityManager.AddBuffer<LuaScriptRequest>(entity);
-			requestBuffer.Add(new LuaScriptRequest
-			{
-				scriptName = $"GameModes/{modeName}",
-				requestHash = LuaScriptPathUtility.HashScriptName($"GameModes/{modeName}"),
-				fulfilled = false,
-			});
+			requestBuffer.Add(
+				new LuaScriptRequest
+				{
+					scriptName = $"GameModes/{modeName}",
+					requestHash = LuaScriptPathUtility.HashScriptName($"GameModes/{modeName}"),
+					fulfilled = false,
+				}
+			);
 
 			// Add event buffer
 			entityManager.AddBuffer<LuaEvent>(entity);
@@ -283,6 +307,7 @@ namespace LuaGame.GameMode
 		/// <summary>
 		/// Primes the burst context with an ECB before the first world update.
 		/// This allows OnInit callbacks to create entities via ecs.create_entity().
+		/// Also primes health and damage zone contexts for gameplay operations.
 		/// </summary>
 		void PrimeBurstContext()
 		{
@@ -291,6 +316,18 @@ namespace LuaGame.GameMode
 
 			var scriptingSystem = CurrentWorld.GetExistingSystemManaged<LuaScriptingSystem>();
 			scriptingSystem?.PrimeBurstContextForOnInit();
+
+			// Prime health context so health.add() works during OnInit
+			var healthSystem = CurrentWorld.GetExistingSystemManaged<LuaHealthSystem>();
+			healthSystem?.PrimeContextForOnInit();
+
+			// Prime damage zone context so damagezone.create() works during OnInit
+			var damageZoneSystem = CurrentWorld.GetExistingSystemManaged<LuaDamageZoneSystem>();
+			damageZoneSystem?.PrimeContextForOnInit();
+
+			// Prime TTL context so ttl.set() works during OnInit
+			var ttlSystem = CurrentWorld.GetExistingSystemManaged<LuaTimeToLiveSystem>();
+			ttlSystem?.PrimeContextForOnInit();
 		}
 
 		/// <summary>
@@ -356,7 +393,28 @@ namespace LuaGame.GameMode
 			if (vm == null || !vm.IsValid)
 				return;
 
-			vm.CallFunction(script.scriptName.ToString(), "OnBeforeUnload", script.entityIndex, script.stateRef);
+			// Prime contexts so OnBeforeUnload can call entities.destroy(), damagezone.destroy(), etc.
+			// Use the system's prime methods - they create ECBs that will be played back by the ECB system
+			var scriptingSystem = CurrentWorld.GetExistingSystemManaged<LuaScriptingSystem>();
+			scriptingSystem?.PrimeBurstContextForOnInit();
+
+			// Prime damage zone context for damagezone.destroy()
+			var damageZoneSystem = CurrentWorld.GetExistingSystemManaged<LuaDamageZoneSystem>();
+			damageZoneSystem?.PrimeContextForOnInit();
+
+			vm.CallFunction(
+				script.scriptName.ToString(),
+				"OnBeforeUnload",
+				script.entityIndex,
+				script.stateRef
+			);
+
+			// Play back the primed ECB from scripting system
+			scriptingSystem?.PlaybackPrimedECB();
+
+			// Clear contexts to avoid use-after-dispose
+			LuaECSBridge.ClearBurstContext();
+			LuaDamageZoneBridge.ClearContext();
 		}
 
 		void DisposeCurrentWorld()

@@ -18,11 +18,13 @@ namespace LuaGame.Systems
 	public partial class LuaTimeToLiveSystem : SystemBase
 	{
 		EndSimulationEntityCommandBufferSystem m_ECBSystem;
+		ComponentLookup<LuaTimeToLive> m_TTLLookup;
 		bool m_BridgeRegistered;
 
 		protected override void OnCreate()
 		{
 			m_ECBSystem = World.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>();
+			m_TTLLookup = GetComponentLookup<LuaTimeToLive>();
 		}
 
 		protected override void OnStartRunning()
@@ -38,14 +40,26 @@ namespace LuaGame.Systems
 			}
 		}
 
+		/// <summary>
+		/// Primes the TTL context before OnInit runs.
+		/// Called by GameModeManager to enable ttl.set() during OnInit.
+		/// </summary>
+		public void PrimeContextForOnInit()
+		{
+			m_TTLLookup.Update(this);
+			var ecb = m_ECBSystem.CreateCommandBuffer();
+			LuaTTLBridge.UpdateContext(m_TTLLookup, ecb);
+		}
+
 		protected override void OnUpdate()
 		{
-			var deltaTime = SystemAPI.Time.DeltaTime;
+			m_TTLLookup.Update(this);
 			var ecb = m_ECBSystem.CreateCommandBuffer();
+			LuaTTLBridge.UpdateContext(m_TTLLookup, ecb);
 
-			foreach (
-				var (ttl, entity) in SystemAPI.Query<RefRW<LuaTimeToLive>>().WithEntityAccess()
-			)
+			var deltaTime = SystemAPI.Time.DeltaTime;
+
+			foreach (var (ttl, entity) in SystemAPI.Query<RefRW<LuaTimeToLive>>().WithEntityAccess())
 			{
 				if (ttl.ValueRO.remaining <= 0f)
 					continue;

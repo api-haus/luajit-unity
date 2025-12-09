@@ -1,9 +1,9 @@
 namespace LuaGame.Bridge
 {
 	using AOT;
-	using LuaGame.Components;
 	using LuaECS.Components;
 	using LuaECS.Core;
+	using LuaGame.Components;
 	using LuaNET.LuaJIT;
 	using Unity.Burst;
 	using Unity.Collections.LowLevel.Unsafe;

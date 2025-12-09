@@ -32,7 +32,7 @@ namespace LuaECS.Core
 			var result = new ScriptAnnotations
 			{
 				tickGroup = LuaTickGroup.Variable,
-				hasTickAnnotation = false
+				hasTickAnnotation = false,
 			};
 
 			if (string.IsNullOrEmpty(source))
@@ -75,7 +75,7 @@ namespace LuaECS.Core
 				return new ScriptAnnotations
 				{
 					tickGroup = LuaTickGroup.Variable,
-					hasTickAnnotation = false
+					hasTickAnnotation = false,
 				};
 			}
 
@@ -102,7 +102,7 @@ namespace LuaECS.Core
 				"before_physics" => LuaTickGroup.BeforePhysics,
 				"after_physics" => LuaTickGroup.AfterPhysics,
 				"after_transform" => LuaTickGroup.AfterTransform,
-				_ => LuaTickGroup.Variable
+				_ => LuaTickGroup.Variable,
 			};
 		}
 
@@ -118,7 +118,7 @@ namespace LuaECS.Core
 				LuaTickGroup.BeforePhysics => "before_physics",
 				LuaTickGroup.AfterPhysics => "after_physics",
 				LuaTickGroup.AfterTransform => "after_transform",
-				_ => "variable"
+				_ => "variable",
 			};
 		}
 	}

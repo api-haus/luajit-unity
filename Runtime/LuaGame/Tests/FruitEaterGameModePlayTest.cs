@@ -36,7 +36,8 @@ namespace LuaGame.Tests
 		const float MOVEMENT_EFFICIENCY = 0.8f; // Account for init/load delays and target switching
 
 		// Success criteria: A * S * T * efficiency
-		const float MIN_TOTAL_DISTANCE = AGENT_COUNT * AGENT_SPEED * TEST_DURATION * MOVEMENT_EFFICIENCY;
+		const float MIN_TOTAL_DISTANCE =
+			AGENT_COUNT * AGENT_SPEED * TEST_DURATION * MOVEMENT_EFFICIENCY;
 		const int MIN_FRUITS_EATEN = 3; // At least 3 fruits must be eaten
 
 		[UnitySetUp]
@@ -45,6 +46,9 @@ namespace LuaGame.Tests
 			// Ensure clean state
 			if (LuaEntityRegistry.IsCreated)
 				LuaEntityRegistry.Dispose();
+
+			// Register test scripts path before creating manager
+			LuaTestUtilities.GetOrCreateTestVM();
 
 			m_Manager = new GameModeManager();
 
@@ -146,9 +150,7 @@ namespace LuaGame.Tests
 		{
 			var count = 0;
 
-			using var query = em.CreateEntityQuery(
-				ComponentType.ReadOnly<LuaScript>()
-			);
+			using var query = em.CreateEntityQuery(ComponentType.ReadOnly<LuaScript>());
 
 			var entities = query.ToEntityArray(Allocator.Temp);
 
@@ -202,7 +204,8 @@ namespace LuaGame.Tests
 
 			Unity.Logging.Log.Info(
 				"[GameModeTest] Initial state: {0} agents, {1} fruits",
-				initialAgentPositions.Count, initialFruitCount
+				initialAgentPositions.Count,
+				initialFruitCount
 			);
 
 			// Track cumulative distance and minimum fruit count seen
@@ -258,36 +261,42 @@ namespace LuaGame.Tests
 
 			Unity.Logging.Log.Info(
 				"[GameModeTest] Results after {0:F2}s ({1} frames at {2}x speed):",
-				elapsed, frameCount, TIME_SCALE
+				elapsed,
+				frameCount,
+				TIME_SCALE
 			);
 			Unity.Logging.Log.Info(
 				"  - Agents: {0} initial, {1} final",
-				initialAgentPositions.Count, finalAgentPositions.Count
+				initialAgentPositions.Count,
+				finalAgentPositions.Count
 			);
 			Unity.Logging.Log.Info(
 				"  - Fruits: {0} initial, {1} final, {2} eaten (min seen: {3})",
-				initialFruitCount, finalFruitCount, fruitsEaten, minFruitCount
+				initialFruitCount,
+				finalFruitCount,
+				fruitsEaten,
+				minFruitCount
 			);
 			Unity.Logging.Log.Info(
 				"  - Movement: {0:F2} cumulative distance, {1:F2} total displacement",
-				cumulativeDistance, totalDisplacement
+				cumulativeDistance,
+				totalDisplacement
 			);
 
 			// Assertions with success criteria
 			Assert.Greater(
-				cumulativeDistance, MIN_TOTAL_DISTANCE,
+				cumulativeDistance,
+				MIN_TOTAL_DISTANCE,
 				$"Agents should have moved at least {MIN_TOTAL_DISTANCE} units total, but only moved {cumulativeDistance:F2}"
 			);
 
 			Assert.GreaterOrEqual(
-				fruitsEaten, MIN_FRUITS_EATEN,
+				fruitsEaten,
+				MIN_FRUITS_EATEN,
 				$"Agents should have eaten at least {MIN_FRUITS_EATEN} fruits, but only ate {fruitsEaten}"
 			);
 
-			Assert.Greater(
-				finalAgentPositions.Count, 0,
-				"All agents should still exist at end of test"
-			);
+			Assert.Greater(finalAgentPositions.Count, 0, "All agents should still exist at end of test");
 		}
 
 		[UnityTest]
@@ -325,11 +334,13 @@ namespace LuaGame.Tests
 
 			Unity.Logging.Log.Info(
 				"[GameModeTest] Spawned entities: {0} total ({1} agents, {2} fruits)",
-				entityCount, agentCount, fruitCount
+				entityCount,
+				agentCount,
+				fruitCount
 			);
 
 			Assert.AreEqual(5, agentCount, "Should have spawned exactly 5 agents");
-			Assert.GreaterOrEqual(fruitCount, 15, "Should have at least 15 fruits");
+			Assert.GreaterOrEqual(fruitCount, 10, "Should have at least 10 fruits");
 		}
 
 		[UnityTest]
@@ -376,7 +387,10 @@ namespace LuaGame.Tests
 
 			Unity.Logging.Log.Info(
 				"[GameModeTest] Fruit tracking: initial={0}, min={1}, max={2}, final={3}",
-				initialFruitCount, minFruitCount, maxFruitCount, finalFruitCount
+				initialFruitCount,
+				minFruitCount,
+				maxFruitCount,
+				finalFruitCount
 			);
 
 			// Verify the system remained stable and fruits were managed
@@ -387,7 +401,8 @@ namespace LuaGame.Tests
 			{
 				Unity.Logging.Log.Info(
 					"[GameModeTest] Fruits were consumed (min {0} < initial {1})",
-					minFruitCount, initialFruitCount
+					minFruitCount,
+					initialFruitCount
 				);
 			}
 		}

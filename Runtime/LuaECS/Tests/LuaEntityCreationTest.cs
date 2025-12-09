@@ -3,8 +3,8 @@ namespace LuaECS.Tests
 	using System.Collections;
 	using Components;
 	using Core;
-	using Systems;
 	using NUnit.Framework;
+	using Systems;
 	using Unity.Entities;
 	using Unity.Mathematics;
 	using Unity.Transforms;

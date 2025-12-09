@@ -1,8 +1,8 @@
 namespace LuaGame.Bridge
 {
 	using AOT;
-	using LuaGame.Components;
 	using LuaECS.Core;
+	using LuaGame.Components;
 	using LuaNET.LuaJIT;
 	using Unity.Burst;
 	using Unity.Collections.LowLevel.Unsafe;
@@ -19,6 +19,7 @@ namespace LuaGame.Bridge
 			[NativeDisableUnsafePtrRestriction]
 			public ComponentLookup<LuaTimeToLive> ttlLookup;
 
+			public EntityCommandBuffer ecb;
 			public bool isValid;
 		}
 
@@ -27,9 +28,17 @@ namespace LuaGame.Bridge
 		static readonly SharedStatic<TTLBridgeContext> s_context =
 			SharedStatic<TTLBridgeContext>.GetOrCreate<TTLContextMarker, TTLBridgeContext>();
 
-		public static void UpdateContext(ComponentLookup<LuaTimeToLive> ttlLookup)
+		public static void UpdateContext(
+			ComponentLookup<LuaTimeToLive> ttlLookup,
+			EntityCommandBuffer ecb
+		)
 		{
-			s_context.Data = new TTLBridgeContext { ttlLookup = ttlLookup, isValid = true };
+			s_context.Data = new TTLBridgeContext
+			{
+				ttlLookup = ttlLookup,
+				ecb = ecb,
+				isValid = true,
+			};
 		}
 
 		public static void ClearContext()
@@ -61,10 +70,10 @@ namespace LuaGame.Bridge
 
 		/// <summary>
 		/// ttl.set(entityId, seconds, destroyOnExpire?)
-		/// Sets TTL on entity. destroyOnExpire defaults to true.
+		/// Sets TTL on entity. Adds component if missing.
+		/// destroyOnExpire defaults to true.
 		/// </summary>
 		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
-		[BurstCompile]
 		static int TTL_Set(lua_State l)
 		{
 			var entityId = (int)Lua.lua_tointeger(l, 1);
@@ -85,13 +94,30 @@ namespace LuaGame.Bridge
 				destroyOnExpire = Lua.lua_toboolean(l, 3) != 0;
 			}
 
-			if (ctx.ttlLookup.HasComponent(entity))
+			var isPending = LuaECSBridge.IsPendingEntity(entityId);
+
+			if (isPending)
 			{
+				// Pending entity - must use ECB to add component
+				// Use burst context ECB for consistency with entity creation
+				if (LuaECSBridge.TryGetBurstContextECB(out var burstEcb))
+				{
+					burstEcb.AddComponent(entity, LuaTimeToLive.Create(seconds, destroyOnExpire));
+				}
+			}
+			else if (ctx.ttlLookup.HasComponent(entity))
+			{
+				// Existing entity with TTL - update directly
 				var ttl = ctx.ttlLookup[entity];
 				ttl.remaining = seconds;
 				ttl.initial = seconds;
 				ttl.destroyOnExpire = destroyOnExpire;
 				ctx.ttlLookup[entity] = ttl;
+			}
+			else
+			{
+				// Existing entity without TTL - add via ECB
+				ctx.ecb.AddComponent(entity, LuaTimeToLive.Create(seconds, destroyOnExpire));
 			}
 
 			return 0;
