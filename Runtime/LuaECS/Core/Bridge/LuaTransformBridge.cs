@@ -169,7 +169,7 @@ namespace LuaECS.Core
 			return 1;
 		}
 
-		internal static void PushFloat3AsTable(lua_State l, float3 value)
+		public static void PushFloat3AsTable(lua_State l, float3 value)
 		{
 			Lua.lua_newtable(l);
 
@@ -189,7 +189,7 @@ namespace LuaECS.Core
 			}
 		}
 
-		internal static float3 TableToFloat3Burst(lua_State l, int index)
+		public static float3 TableToFloat3Burst(lua_State l, int index)
 		{
 			var result = float3.zero;
 
