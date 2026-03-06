@@ -3,16 +3,12 @@ namespace LuaECS.Systems
 	using System.Collections.Generic;
 	using Components;
 	using Core;
-	using LuaCharacters;
-	using LuaCharacters.Core;
 	using LuaVM.Core;
 	using Support;
-	using Unity.CharacterController;
 	using Unity.Collections;
 	using Unity.Entities;
 	using Unity.Logging;
 	using Unity.Mathematics;
-	using Unity.Physics;
 	using Unity.Transforms;
 
 	public struct LuaScriptingSystemSingleton : IComponentData { }
@@ -37,10 +33,6 @@ namespace LuaECS.Systems
 
 		ComponentLookup<LocalTransform> m_TransformLookup;
 		BufferLookup<LuaScript> m_ScriptBufferLookup;
-
-		ComponentLookup<LuaCharacterControl> m_CharacterControlLookup;
-		ComponentLookup<KinematicCharacterBody> m_CharacterBodyLookup;
-		ComponentLookup<PhysicsVelocity> m_PhysicsVelocityLookup;
 
 		List<(
 			Entity entity,
@@ -68,10 +60,6 @@ namespace LuaECS.Systems
 			m_PendingUpdates = new List<(Entity, int, string, int, int, LuaTickGroup)>(256);
 			m_TransformLookup = GetComponentLookup<LocalTransform>();
 			m_ScriptBufferLookup = GetBufferLookup<LuaScript>(true);
-
-			m_CharacterControlLookup = GetComponentLookup<LuaCharacterControl>();
-			m_CharacterBodyLookup = GetComponentLookup<KinematicCharacterBody>(true);
-			m_PhysicsVelocityLookup = GetComponentLookup<PhysicsVelocity>(true);
 		}
 
 		protected override void OnStartRunning()
@@ -147,9 +135,6 @@ namespace LuaECS.Systems
 
 			m_TransformLookup.Update(this);
 			m_ScriptBufferLookup.Update(this);
-			m_CharacterControlLookup.Update(this);
-			m_CharacterBodyLookup.Update(this);
-			m_PhysicsVelocityLookup.Update(this);
 
 			// Pass ECB and deltaTime to context for direct use by bridge functions
 			LuaECSBridge.UpdateBurstContext(
@@ -158,12 +143,6 @@ namespace LuaECS.Systems
 				m_TransformLookup,
 				m_ScriptBufferLookup
 			);
-			LuaECSBridge.UpdateCharacterContext(
-				m_CharacterControlLookup,
-				m_CharacterBodyLookup,
-				m_PhysicsVelocityLookup
-			);
-
 			UpdateScriptedEntities(deltaTime);
 			DispatchEvents();
 			// Note: ProcessPendingOperations removed - bridge functions now write directly to ECB

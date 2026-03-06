@@ -12,7 +12,7 @@ This document defines the boundary between **Framework** (C#/ECS/Burst) and **Sc
 │   "What to do" — decisions, behaviors, state machines        │
 ├─────────────────────────────────────────────────────────────┤
 │                      ECS Bridge                              │
-│   API surface — ecs.*, character.*, input.* exposed to Lua   │
+│   API surface — ecs.*, input.* exposed to Lua                │
 ├─────────────────────────────────────────────────────────────┤
 │                   Framework (C#/Burst)                       │
 │   "How to do it" — movement, physics, queries, data          │
@@ -46,9 +46,7 @@ Runtime/
         LuaSpatialBridge.cs     # spatial.distance, query_near, get_entity_count
         LuaEventsBridge.cs      # events.send_attack
         LuaLogBridge.cs         # log.info, debug, warning, error
-        LuaCharacterBridge.cs   # character.create, set_move_input, is_grounded
-        LuaInputBridge.cs       # input.get_move, get_look, get_jump
-        LuaPlayerBridge.cs      # player.get, is_player
+        LuaInputBridge.cs       # input.read_value, was_pressed, is_held, was_released
         LuaDrawBridge.cs        # draw.line, draw.sphere (debug)
     Components/
       LuaScriptComponent.cs   # LuaScriptRequest and LuaScript buffers
@@ -56,7 +54,6 @@ Runtime/
       LuaPlayerComponents.cs  # Player tag and related components
     Systems/
       LuaScriptingSystem.cs       # Orchestrator: runtime updates, events, direct ECB
-      LuaPlayerBootstrapSystem.cs # Player entity setup
       Support/
         LuaScriptFulfillmentSystem.cs # Request processing, script init, disabling
         LuaEventDispatcher.cs        # Event collection, dispatch
@@ -66,33 +63,6 @@ Runtime/
       LuaScriptBufferAuthoring.cs # Buffer-based script authoring
     Demo/
       FruitEaterDemo.cs       # Demo bootstrapper
-  LuaGame/
-    Components/
-      LuaHealth.cs            # Health component (Current, Max, IsDead)
-    Systems/
-      LuaHealthSystem.cs      # Process damage, trigger OnDeath events
-    Bridge/
-      LuaHealthBridge.cs      # health.get, health.set, health.damage, health.is_dead
-  LuaCharacters/
-    Core/
-      LuaCharacterComponents.cs # Character control components
-      LuaCharacterAspect.cs     # Character aspect for systems
-      LuaCharacterSystems.cs    # Character update systems
-      Authoring/
-        LuaCharacterAuthoring.cs # MonoBehaviour for characters
-    ThirdPerson/
-      Components/
-        ThirdPersonCharacterComponent.cs
-        ThirdPersonPlayer.cs
-        LuaPlayerBootstrapConfig.cs
-      Aspects/
-        ThirdPersonCharacterAspect.cs
-      Systems/
-        ThirdPersonCharacterSystems.cs
-        ThirdPersonPlayerSystems.cs
-        FixedTickSystem.cs
-      Input/
-        FixedInputEvent.cs
 Editor/
   LuaHotReloadSystem.cs         # FileSystemWatcher for hot reload
   LuaScriptAssetReferenceDrawer.cs # Inspector drawer
@@ -178,8 +148,7 @@ The framework provides primitives that Lua cannot efficiently implement.
 | -------------------------------------- | ------------------------------------------ | ------ | ----- |
 | `LuaScriptingSystem`                   | Runtime updates, event dispatch, ECB       | Main   | No    |
 | `LuaScriptFulfillmentSystem`           | Script initialization, disabling           | Main   | No    |
-| `LuaScriptCleanupSystem`               | Destruction, OnDestroy, cleanup            | Main   | No    |
-| `LuaPlayerBootstrapSystem`             | Player entity setup                        | Main   | No    |
+| `LuaScriptCleanupSystem`              | Destruction, OnDestroy, cleanup            | Main   | No    |
 | `EndSimulationEntityCommandBufferSystem` | Unity built-in structural change playback | Main   | N/A   |
 
 ### Bridge API (Implemented)
@@ -193,12 +162,8 @@ The bridge uses a **domain-oriented API** with direct ECB access. Modules are un
 | `LuaSpatialBridge`   | `spatial`     | `distance`, `query_near`, `get_entity_count`                          | Distance checks, area queries         |
 | `LuaEventsBridge`    | `events`      | `send_attack`                                                         | Cross-entity event dispatch           |
 | `LuaLogBridge`       | `log`         | `info`, `debug`, `warning`, `error`                                   | Via Unity.Logging                     |
-| `LuaCharacterBridge` | `character`   | `create`, `set_move_input`, `set_jump`, `is_grounded`, `get_velocity` | Character controller                  |
-| `LuaInputBridge`     | `input`       | `get_move`, `get_look`, `get_jump`                                    | Unity Input System                    |
-| `LuaPlayerBridge`    | `player`      | `get`, `is_player`                                                    | Player entity queries                 |
+| `LuaInputBridge`     | `input`       | `read_value`, `was_pressed`, `is_held`, `was_released`                | Unity Input System                    |
 | `LuaDrawBridge`      | `draw`        | `line`, `sphere`                                                      | Debug visualization                   |
-
-Legacy `ecs.*` namespace is preserved for backward compatibility.
 
 ### Support Systems
 
@@ -214,83 +179,11 @@ Entity ID management is handled by `LuaEntityRegistry` via SharedStatic for Burs
 
 ---
 
-## LuaGame Assembly
+## `[LuaBridge]` Codegen Pattern
 
-Gameplay-focused assembly providing entity lifecycle hooks and health/damage systems.
+Components annotated with `[LuaBridge("name")]` automatically get Roslyn source-generated Lua getter/setter bridges. This is the preferred way to expose ECS data to Lua — define a component, annotate it, and the codegen handles registration.
 
-### Components
-
-| Component   | Purpose                             |
-| ----------- | ----------------------------------- |
-| `LuaHealth` | Health state (Current, Max, IsDead) |
-
-### Systems
-
-| System            | Purpose                                |
-| ----------------- | -------------------------------------- |
-| `LuaHealthSystem` | Process damage, trigger OnDeath events |
-
-### Bridge API
-
-| Module            | Lua Namespace | Functions                                 | Notes             |
-| ----------------- | ------------- | ----------------------------------------- | ----------------- |
-| `LuaHealthBridge` | `health`      | `get`, `set`, `damage`, `heal`, `is_dead` | Health management |
-
----
-
-## LuaCharacters Assembly
-
-Separate assembly providing character controller integration with Unity Character Controller package.
-
-### Components
-
-| Component                       | Purpose                               |
-| ------------------------------- | ------------------------------------- |
-| `LuaCharacterComponent`         | Character movement parameters         |
-| `LuaCharacterControl`           | Runtime input state (moveInput, jump) |
-| `ThirdPersonCharacterComponent` | Third-person specific settings        |
-| `ThirdPersonPlayer`             | Player-controlled character marker    |
-| `LuaPlayerBootstrapConfig`      | Player prefab spawning configuration  |
-
-### Systems
-
-| System                                    | Purpose                             |
-| ----------------------------------------- | ----------------------------------- |
-| `LuaCharacterVariableUpdateSystem`        | Sync character variables each frame |
-| `LuaCharacterPhysicsUpdateSystem`         | Character physics integration       |
-| `ThirdPersonCharacterPhysicsUpdateSystem` | Third-person physics updates        |
-| `ThirdPersonPlayerVariableUpdateSystem`   | Player input to character control   |
-| `FixedTickSystem`                         | Fixed timestep event broadcasting   |
-
----
-
-## Framework Scope (Planned)
-
-Future framework additions that will be exposed to Lua.
-
-### Combat (Planned)
-
-| Feature   | Bridge API                              | Framework Responsibility   |
-| --------- | --------------------------------------- | -------------------------- |
-| Combat    | `attack`, `get_attack_range`            | Hit detection, cooldowns   |
-| Animation | `play_animation`, `get_animation_state` | Animator integration       |
-| Stats     | `get_stat`, `modify_stat`               | Stat system with modifiers |
-
-### Inventory
-
-| Feature   | Bridge API                                 | Framework Responsibility           |
-| --------- | ------------------------------------------ | ---------------------------------- |
-| Items     | `get_inventory`, `add_item`, `remove_item` | Inventory buffer, stack management |
-| Equipment | `equip`, `unequip`, `get_equipped`         | Equipment slots, stat bonuses      |
-| Transfer  | `transfer_item`, `deposit_all`             | Container interactions             |
-
-### World & Navigation
-
-| Feature     | Bridge API                       | Framework Responsibility |
-| ----------- | -------------------------------- | ------------------------ |
-| Pathfinding | `find_path`, `move_along_path`   | NavMesh integration      |
-| Zones       | `get_current_zone`, `is_in_zone` | Zone detection           |
-| Spawning    | `spawn_entity`, `spawn_prefab`   | Entity instantiation     |
+Character controllers, stats, and gameplay systems should be implemented at the **project level** using this pattern rather than in the package.
 
 ---
 
@@ -377,44 +270,18 @@ end
 
 ## Extension Pattern
 
-When adding new framework features:
+When adding new framework features, prefer the `[LuaBridge]` codegen pattern:
 
-1. **Define the component** (C# `IComponentData`)
-2. **Add bridge function** (in appropriate `Bridge/*Bridge.cs` file)
+1. **Define the component** (C# `IComponentData`) with `[LuaBridge("name")]` attribute
+2. **Codegen auto-generates** getter/setter bridge functions
+3. **Update type definitions** (`types/ecs.lua`)
+
+For custom bridge functions that don't fit the codegen pattern:
+
+1. **Add bridge function** (in appropriate `Bridge/*Bridge.cs` file)
+2. **Register in `LuaECSBridge.RegisterFunctions`**
 3. **Update type definitions** (`types/ecs.lua`)
 4. **Document in this file**
-
-Example for adding health (would go in a new `LuaHealthBridge.cs`):
-
-```csharp
-// 1. Component
-public struct Health : IComponentData
-{
-    public float Current;
-    public float Max;
-}
-
-// 2. Bridge function (in LuaHealthBridge.cs)
-[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
-static int ECS_GetHealth(lua_State L)
-{
-    var entity = GetEntityFromId((int)Lua.lua_tointeger(L, 1));
-    if (!s_EntityManager.HasComponent<Health>(entity))
-    {
-        Lua.lua_pushnil(L);
-        return 1;
-    }
-    var health = s_EntityManager.GetComponentData<Health>(entity);
-    Lua.lua_pushnumber(L, health.Current);
-    Lua.lua_pushnumber(L, health.Max);
-    return 2;
-}
-```
-
-```lua
--- 3. Type definition (types/ecs.lua)
----@field get_health fun(entity: EntityIndex): number, number Get current and max health
-```
 
 ---
 
@@ -460,15 +327,10 @@ Script initialization uses separate buffers for requests and fulfilled scripts:
 | Commands          | ✅         | ✅      | ✅     | Deferred execution         |
 | Events            | ✅         | ✅      | ✅     | Full dispatch system       |
 | Logging           | ✅         | ✅      | ✅     | Unity.Logging integration  |
-| Health            | ✅         | ✅      | ⚠️     | LuaGame assembly           |
+| Input             | ✅         | ✅      | ⚠️     | Unity Input System         |
+| Debug Draw        | ✅         | ✅      | ⚠️     | Line, sphere primitives    |
 | OnDestroy         | ✅         | N/A    | N/A   | Lifecycle callback         |
 | Script Disabling  | ✅         | N/A    | N/A   | Runtime script removal     |
-| Character Control | ✅         | ✅      | ⚠️     | Unity Character Controller |
-| Input             | ✅         | ✅      | ⚠️     | Unity Input System         |
-| Player            | ✅         | ✅      | ⚠️     | Basic player queries       |
-| Debug Draw        | ✅         | ✅      | ⚠️     | Line, sphere primitives    |
-| Inventory         | ❌         | ❌      | ❌     | Planned                    |
-| Pathfinding       | ❌         | ❌      | ❌     | Planned                    |
 
 Legend: ✅ Implemented | ⚠️ Partial/No Types | ❌ Not started
 

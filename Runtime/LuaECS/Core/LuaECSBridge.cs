@@ -289,9 +289,8 @@ namespace LuaECS.Core
 			InitializeGlobalLog(l);
 
 			RegisterInputFunctions(l);
-			RegisterCharacterFunctions(l);
 			RegisterDrawFunctions(l);
-			RegisterPlayerFunctions(l);
+			RegisterMathFunctions(l);
 		}
 
 		static void RegisterFunction(lua_State l, string name, Lua.lua_CFunction func)

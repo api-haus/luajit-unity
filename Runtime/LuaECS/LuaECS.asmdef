@@ -4,7 +4,6 @@
 	"references": [
 		"LuaJIT",
 		"LuaVM",
-		"LuaCharacters",
 		"Unity.Entities",
 		"Unity.Entities.Hybrid",
 		"Unity.Mathematics",
@@ -12,10 +11,10 @@
 		"Unity.Burst",
 		"Unity.Transforms",
 		"Unity.Logging",
-		"Unity.CharacterController",
 		"Unity.Physics",
 		"Unity.InputSystem",
-		"ALINE"
+		"ALINE",
+		"Unity.CharacterController"
 	],
 	"includePlatforms": [],
 	"excludePlatforms": [],
