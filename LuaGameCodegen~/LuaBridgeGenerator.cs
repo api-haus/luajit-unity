@@ -256,7 +256,7 @@ namespace LuaGameCodegen
             sb.AppendLine("#if UNITY_EDITOR");
             sb.AppendLine("\t\t[UnityEditor.InitializeOnLoadMethod]");
             sb.AppendLine("#endif");
-            sb.AppendLine("\t\t[UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]");
+            sb.AppendLine("\t\t[UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.AfterAssembliesLoaded)]");
             sb.AppendLine("\t\tstatic void AutoRegister()");
             sb.AppendLine("\t\t{");
             sb.AppendLine("\t\t\tLuaComponentRegistry.RegisterBridge(");
