@@ -24,6 +24,7 @@ namespace LuaECS.Core
 			RegisterFunction(l, "destroy", Entities_Destroy);
 			RegisterFunction(l, "add_script", Entities_AddScript);
 			RegisterFunction(l, "has_script", Entities_HasScript);
+			RegisterFunction(l, "remove_component", Entities_RemoveComponent);
 
 			Lua.lua_setglobal(l, "entities");
 		}
@@ -180,6 +181,51 @@ namespace LuaECS.Core
 			var entity = GetEntityFromIdBurst(entityId);
 			var hasScript = HasScriptBurst(entity, scriptName);
 			Lua.lua_pushboolean(l, hasScript ? 1 : 0);
+			return 1;
+		}
+
+		[MonoPInvokeCallback(typeof(Lua.lua_CFunction))]
+		static int Entities_RemoveComponent(lua_State l)
+		{
+			var entityId = (int)Lua.lua_tointeger(l, 1);
+			if (entityId <= 0)
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			var componentName = Lua.lua_tostring(l, 2);
+			if (string.IsNullOrEmpty(componentName))
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			if (!LuaComponentRegistry.TryGetComponentType(componentName, out var componentType))
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			ref var ctx = ref s_burstContext.Data;
+			if (!ctx.isValid)
+			{
+				Lua.lua_pushboolean(l, 0);
+				return 1;
+			}
+
+			if (!ctx.entityIdMap.TryGetValue(entityId, out var entity) || entity == Entity.Null)
+			{
+				entity = GetPendingEntity(entityId);
+				if (entity == Entity.Null)
+				{
+					Lua.lua_pushboolean(l, 0);
+					return 1;
+				}
+			}
+
+			ctx.ecb.RemoveComponent(entity, componentType);
+			Lua.lua_pushboolean(l, 1);
 			return 1;
 		}
 	}
