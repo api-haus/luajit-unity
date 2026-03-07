@@ -44,6 +44,7 @@ namespace LuaECS.Systems
 				m_Vm.RegisterBridgeNow(LuaSystemBridge.Register);
 				m_Vm.RegisterBridgeNow(LuaQueryBridge.Register);
 				m_Vm.RegisterBridgeNow(LuaComponentRegistry.RegisterAllBridges);
+				m_Vm.RegisterBridgeNow(LuaComponentStore.Register);
 				m_BridgesRegistered = true;
 			}
 
@@ -65,6 +66,7 @@ namespace LuaECS.Systems
 		protected override void OnDestroy()
 		{
 			LuaQueryBridge.Shutdown();
+			LuaComponentStore.Shutdown();
 		}
 
 		void DiscoverAndLoadSystems()
